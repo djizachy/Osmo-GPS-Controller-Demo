@@ -32,6 +32,9 @@
 #include "custom_crc16.h"
 #include "custom_crc32.h"
 
+#include "dji_protocol_parser.h"
+#include "dji_protocol_data_processor.h"
+
 #define GATTC_TAG "GATTC_DEMO"  // 日志标签
 #define REMOTE_SERVICE_UUID        0xFFF0  // 远程服务的 UUID
 #define REMOTE_NOTIFY_CHAR_UUID    0xFFF4  // 相机发送，遥控器接收（NOTIFY）
@@ -100,65 +103,6 @@ static struct gattc_profile_inst gl_profile_tab[PROFILE_NUM] = {
         .gattc_if = ESP_GATT_IF_NONE,  // 初始化为 ESP_GATT_IF_NONE
     },
 };
-
-uint8_t* create_version_query_frame(uint8_t *data, size_t data_len, size_t *frame_length_out) {
-    // 动态计算帧长度
-    size_t frame_length = 12 + data_len + 4; // 固定头部10字节 + DATA长度 + CRC-32校验字段4字节
-
-    // 动态分配内存
-    uint8_t *version_query_cmd = (uint8_t *)malloc(frame_length);
-    if (!version_query_cmd) {
-        printf("Memory allocation failed!\n");
-        return NULL;
-    }
-
-    memset(version_query_cmd, 0, frame_length); // 初始化为 0
-
-    // 计算 Ver/Length 字段
-    uint16_t version = 0;  // 版本号，占高 6 位
-    uint16_t ver_length = (version << 10) | (frame_length & 0x03FF);  // 合并版本号和长度
-
-    // 填充数据帧内容
-    version_query_cmd[0] = 0xAA;  // SOF, 固定帧头
-    version_query_cmd[1] = ver_length & 0xFF;  // Ver/Length 低字节
-    version_query_cmd[2] = (ver_length >> 8) & 0xFF;  // Ver/Length 高字节
-    version_query_cmd[3] = 0x00;  // CmdType (命令帧, 需要应答)
-    version_query_cmd[4] = 0x00;  // ENC (不加密)
-    version_query_cmd[5] = 0x00;  // RES (保留字节)
-    version_query_cmd[6] = 0x00;  // RES (保留字节)
-    version_query_cmd[7] = 0x00;  // RES (保留字节)
-    version_query_cmd[8] = 0x00;  // SEQ (高位)
-    version_query_cmd[9] = 0x01;  // SEQ (低位)
-    version_query_cmd[10] = 0x00;  // CRC-16 校验高字节
-    version_query_cmd[11] = 0x00;  // CRC-16 校验低字节
-
-    // 如果 DATA 不为空，填充 DATA 数据段
-    if (data != NULL && data_len > 0) {
-        memcpy(&version_query_cmd[12], data, data_len);
-    }
-
-    // CRC-16 校验 (帧头到 DATA 之前的部分)，LSB in first
-    uint16_t crc16 = calculate_crc16(version_query_cmd, 10);
-    // printf("CRC16 (HEX): 0x%" PRIX16 "\n", crc16);
-
-    version_query_cmd[11] = (crc16 >> 8) & 0xFF;  // CRC-16 高字节
-    version_query_cmd[10] = crc16 & 0xFF;         // CRC-16 低字节
-
-    // CRC-32 校验 (帧头到 DATA + CRC-16 的部分)，LSB in first
-    uint32_t crc32 = calculate_crc32(version_query_cmd, 12 + data_len);
-    version_query_cmd[12 + data_len + 3] = (crc32 >> 24) & 0xFF; // CRC-32 字节 1
-    version_query_cmd[12 + data_len + 2] = (crc32 >> 16) & 0xFF; // CRC-32 字节 2
-    version_query_cmd[12 + data_len + 1] = (crc32 >> 8) & 0xFF;  // CRC-32 字节 3
-    version_query_cmd[12 + data_len + 0] = crc32 & 0xFF;         // CRC-32 字节 4
-
-    // 返回帧长度
-    if (frame_length_out != NULL) {
-        *frame_length_out = frame_length;
-    }
-
-    // 返回生成的帧数据
-    return version_query_cmd;
-}
 
 /* GATT 客户端配置文件事件处理函数 */
 static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param)
@@ -371,18 +315,35 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
         break;
     }
     case ESP_GATTC_NOTIFY_EVT:  // 通知事件
-        // if (p_data->notify.is_notify) {
-        //     ESP_LOGI(GATTC_TAG, "Notification received");
-        // } else {
-        //     ESP_LOGI(GATTC_TAG, "Indication received");
-        // }
-
         // 检查帧头是否为 0xAA
         if (p_data->notify.value_len >= 2 && 
             (p_data->notify.value[0] == 0xAA || p_data->notify.value[0] == 0xaa)) {
+
+            ESP_LOGI(GATTC_TAG, "Notification received, attempting to parse...");
             ESP_LOG_BUFFER_HEX(GATTC_TAG, p_data->notify.value, p_data->notify.value_len);  // 打印通知内容
+
+            // 定义解析结果结构体
+            protocol_frame_t frame;
+
+            // 调用 protocol_parse_notification 解析通知帧
+            uint16_t expected_seq = 0x1234;
+            int ret = protocol_parse_notification(p_data->notify.value, p_data->notify.value_len, expected_seq, &frame);
+            if (ret != 0) {
+                ESP_LOGE(GATTC_TAG, "Failed to parse notification frame, error: %d", ret);
+                break;  // 停止处理
+            }
+
+            // 调用 protocol_parse_data 解析 data 数据段
+            if (frame.data != NULL && frame.data_length > 0) {
+                ret = protocol_parse_data(frame.data, frame.data_length);
+                if (ret != 0) {
+                    ESP_LOGE(GATTC_TAG, "Failed to parse data segment, error: %d", ret);
+                }
+            } else {
+                ESP_LOGW(GATTC_TAG, "Data segment is empty, skipping data parsing");
+            }
         } else {
-            // ESP_LOGI(GATTC_TAG, "Received frame does not start with 0xAA, ignoring...");
+            // ESP_LOGW(GATTC_TAG, "Received frame does not start with 0xAA, ignoring...");
         }
         break;
     case ESP_GATTC_WRITE_DESCR_EVT:  // 写描述符事件
@@ -393,10 +354,10 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
         ESP_LOGI(GATTC_TAG, "Descriptor write successfully");
 
         // 切换摄影模式示例
-        uint8_t data[] = {0x1D, 0x04, 0x33, 0xFF, 0x00, 0x00, 0x0A, 0x01, 0x47, 0x39, 0x36, 0x37}; // 示例 DATA 数据
-        size_t data_len = sizeof(data);
-        size_t frame_length_out = 0; // 用于存储帧的实际长度
-        uint8_t *frame = create_version_query_frame(data, data_len, &frame_length_out);
+        // uint8_t data[] = {0x1D, 0x04, 0x33, 0xFF, 0x00, 0x00, 0x0A, 0x01, 0x47, 0x39, 0x36, 0x37}; // 示例 DATA 数据
+        // size_t data_len = sizeof(data);
+        // size_t frame_length_out = 0; // 用于存储帧的实际长度
+        // uint8_t *frame = create_version_query_frame(data, data_len, &frame_length_out);
 
         // 查询版本号示例
         // uint8_t data[] = {0x00, 0x00};
@@ -408,6 +369,29 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
         // size_t frame_length_out = 28;
         // uint8_t temp_frame[28] = {0xAA, 0x1C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x67, 0x3A, 0xC8, 0x6D, 0x1D, 0x04, 0x33, 0xFF, 0x00, 0x00, 0x0A, 0x01, 0x47, 0x39, 0x36, 0x37, 0x9C, 0x18, 0x9D, 0x03};
         // uint8_t *frame = temp_frame;
+
+        // 分层测试
+        // 构造 key-value 数据
+        key_value_t key_values[] = {
+            {"device_id", (void *)"\x33\xFF\x00\x00", 4},  // 设备 ID 字段
+            {"mode", (void *)"\x0A", 1},                  // 模式字段
+            {"reserved", (void *)"\x01\x47\x39\x36", 4}   // 预留字段
+        };
+        
+        // 准备调用协议帧创建函数
+        uint8_t cmd_set = 0x1D;       // 示例 CmdSet
+        uint8_t cmd_id = 0x04;        // 示例 CmdID
+        uint8_t cmd_type = 0x01;      // 示例命令类型
+        uint16_t seq = 0x1234;        // 示例序列号
+        size_t frame_length_out = 0;  // 存储生成帧的实际长度
+
+        // 调用协议帧创建函数
+        uint8_t *frame = protocol_create_frame(cmd_set, cmd_id, cmd_type, key_values, 3, seq, &frame_length_out);
+        if (frame == NULL) {
+            ESP_LOGE(GATTC_TAG, "Failed to create protocol frame");
+            break;
+        }
+        ESP_LOGI(GATTC_TAG, "Protocol frame created successfully, length: %zu", frame_length_out);
 
         if (frame) {
             // 打印 ByteArray 格式
@@ -465,7 +449,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
     switch (event) {
     case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT: {  // 扫描参数设置完成事件
         // 设置扫描持续时间，单位为秒
-        uint32_t duration = 30;
+        uint32_t duration= 30;
         esp_ble_gap_start_scanning(duration);  // 开始扫描
         break;
     }

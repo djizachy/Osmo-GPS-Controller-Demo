@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <string.h>
 #include "esp_log.h"
 #include "cJSON.h"
@@ -175,7 +176,8 @@ uint8_t* protocol_create_frame(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type
     }
 
     // 计算总帧长度
-    *frame_length = PROTOCOL_HEADER_LENGTH + PROTOCOL_CMD_SET_LENGTH + PROTOCOL_CMD_ID_LENGTH + data_length + PROTOCOL_TAIL_LENGTH;
+    *frame_length = PROTOCOL_HEADER_LENGTH + data_length + PROTOCOL_TAIL_LENGTH;
+    printf("Frame Length: %zu\n", *frame_length);
 
     // 分配内存以存储整个帧
     uint8_t *frame = (uint8_t *)malloc(*frame_length);

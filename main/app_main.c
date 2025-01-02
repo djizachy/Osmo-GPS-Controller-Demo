@@ -1,6 +1,5 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include <stdio.h>
 #include "esp_log.h"
 #include "cJSON.h"
 #include "logic.h"
@@ -21,8 +20,7 @@ void print_json_result(cJSON *json_result) {
     }
 }
 
-void app_main(void)
-{
+void app_main(void) {
     esp_err_t ret;
 
     ret = logic_init("OsmoAction5Pro0C31");
@@ -37,13 +35,20 @@ void app_main(void)
     cJSON *json_result = logic_get_version();
     print_json_result(json_result);
 
-    // 切换相机模式
-    cJSON *json_result2 = logic_switch_camera_mode(CAMERA_MODE_PHOTO);
+    // 切换模式
+    cJSON *json_result2 = logic_switch_camera_mode(CAMERA_MODE_NORMAL);
     print_json_result(json_result2);
 
     // 开始录制
     cJSON *json_result3 = logic_start_record();
     print_json_result(json_result3);
+
+    // 录制5秒，阻塞
+    vTaskDelay(pdMS_TO_TICKS(5000));
+
+    // 停止录制
+    cJSON *json_result4 = logic_stop_record();
+    print_json_result(json_result4);
 
     // ===== 后续逻辑循环 =====
     while (1) {

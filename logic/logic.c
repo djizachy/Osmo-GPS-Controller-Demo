@@ -216,10 +216,11 @@ cJSON* logic_switch_camera_mode(camera_mode_t mode) {
 
     // 构造 JSON 数据
     cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "device_id", "\x33\xFF\x00\x00");
-    char mode_data[1] = {(uint8_t)mode};
-    cJSON_AddStringToObject(root, "mode", mode_data);
-    cJSON_AddStringToObject(root, "reserved", "\x01\x47\x39\x36");
+    cJSON_AddStringToObject(root, "device_id", "33FF0000");      // 假设固定设备 ID
+    char mode_data[3];
+    sprintf(mode_data, "%02X", mode);
+    cJSON_AddStringToObject(root, "mode", mode_data);            // 模式
+    cJSON_AddStringToObject(root, "reserved", "01473936");       // 预留字段
 
     // 调用通用函数并返回结果
     return send_command(0x1D, 0x04, CMD_TYPE_WITH_RESPONSE_OR_NOT, root, seq, 5000);
@@ -250,9 +251,9 @@ cJSON* logic_start_record(void) {
 
     // 构造 JSON 数据
     cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "device_id", "\x33\xFF\x00\x00"); // 假设固定设备 ID
-    cJSON_AddStringToObject(root, "record_ctrl", "\x00");           // 0 表示开始录制
-    cJSON_AddStringToObject(root, "reserved", "\x00\x00\x00\x00");  // 预留字段
+    cJSON_AddStringToObject(root, "device_id", "33FF0000");      // 假设固定设备 ID
+    cJSON_AddStringToObject(root, "record_ctrl", "00");          // 0 表示开始录制
+    cJSON_AddStringToObject(root, "reserved", "00000000");       // 预留字段
 
     // 调用通用函数并返回结果
     return send_command(0x1D, 0x03, CMD_TYPE_WITH_RESPONSE_OR_NOT, root, seq, 5000);
@@ -270,9 +271,9 @@ cJSON* logic_stop_record(void) {
 
     // 构造 JSON 数据
     cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "device_id", "\x33\xFF\x00\x00"); // 假设固定设备 ID
-    cJSON_AddStringToObject(root, "record_ctrl", "\x01");          // 1 表示停止录制
-    cJSON_AddStringToObject(root, "reserved", "\x00\x00\x00\x00"); // 预留字段
+    cJSON_AddStringToObject(root, "device_id", "33FF0000");      // 假设固定设备 ID
+    cJSON_AddStringToObject(root, "record_ctrl", "01");          // 1 表示停止录制
+    cJSON_AddStringToObject(root, "reserved", "00000000");       // 预留字段
 
     // 调用通用函数并返回结果
     return send_command(0x1D, 0x03, CMD_TYPE_WITH_RESPONSE_OR_NOT, root, seq, 5000);

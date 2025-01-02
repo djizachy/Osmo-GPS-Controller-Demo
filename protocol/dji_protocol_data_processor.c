@@ -1,8 +1,8 @@
 #include <string.h>
 #include <stdio.h>
 #include "esp_log.h"
-#include "dji_protocol_data_processor.h"
 #include "cJSON.h"
+#include "dji_protocol_data_processor.h"
 
 #define TAG "DJI_PROTOCOL_DATA_PROCESSOR"  // 设置日志标签，用于日志输出标识
 
@@ -66,29 +66,6 @@ static int parse_single_field(const uint8_t *data, size_t data_length, const dat
         }
         return 0; // 可选字段，跳过
     }
-
-    // // 提取字段值
-    // char *value_str = (char *)malloc(field_size + 1);
-    // if (value_str == NULL) {
-    //     ESP_LOGE(TAG, "Failed to allocate memory for field: %s", field->field_name);
-    //     return -1;
-    // }
-    // memcpy(value_str, data + *offset, field_size);
-    // value_str[field_size] = '\0'; // 确保字符串以 NULL 结尾
-
-    // // 添加字段到 JSON
-    // if (!cJSON_AddStringToObject(output, field->field_name, value_str)) {
-    //     ESP_LOGE(TAG, "Failed to add field %s to JSON object", field->field_name);
-    //     free(value_str);
-    //     return -1;
-    // }
-
-    // free(value_str);
-
-    // ESP_LOGI(TAG, "Parsed field: %s", field->field_name);
-
-    // *offset += field_size; // 更新偏移量
-    // return 0;
 
     // 分配内存存储字段值
     char *value_str = (char *)malloc(field_size + 1);
@@ -166,7 +143,6 @@ int parse_fields(const uint8_t *data, size_t data_length, size_t field_count, co
             return -1; // 单个字段解析失败
         }
     }
-
     return 0;
 }
 
@@ -192,6 +168,12 @@ int data_parser(uint8_t cmd_set, uint8_t cmd_id, const uint8_t *data, size_t dat
 
     // 解析字段
     return parse_fields(data, data_length, descriptor->response_data_field_count, descriptor->response_data_fields, output);
+}
+
+void hex_string_to_bytes(const char *hex_str, uint8_t *data, size_t length) {
+    for (size_t i = 0; i < length; i++) {
+        sscanf(&hex_str[i * 2], "%2hhX", &data[i]);  // 每两位字符转为一个字节
+    }
 }
 
 /**
@@ -239,33 +221,39 @@ uint8_t* data_creator(uint8_t cmd_set, uint8_t cmd_id, const cJSON *key_values, 
     cJSON *item = key_values->child;
     while (item) {
         const char *key = item->string;
-        const uint8_t *field_data = (uint8_t *)cJSON_GetStringValue(item);
+        const char *hex_str = cJSON_GetStringValue(item);  // 获取十六进制字符串
 
-        // 打印 field_data 的字符串和对应的十六进制字节
-        if (field_data) {
+        // 打印 key 和对应的十六进制字符串
+        if (hex_str) {
             printf("Key: %s\n", key);
-            printf("Field Data (String): %s\n", field_data);
-            printf("Field Data (Hex): ");
-            for (size_t i = 0; i < strlen((char *)field_data); ++i) {
-                printf("%02X ", field_data[i]);
-            }
-            printf("\n");
-        }
+            printf("Field Data (Hex): %s\n", hex_str);
 
-        size_t field_size = 0;
-        for (size_t i = 0; i < descriptor->command_data_field_count; ++i) {
-            if (strcmp(descriptor->command_data_fields[i].field_name, key) == 0) {
-                field_size = descriptor->command_data_fields[i].size;
-                break;
+            // 查找字段的大小
+            size_t field_size = 0;
+            for (size_t i = 0; i < descriptor->command_data_field_count; ++i) {
+                if (strcmp(descriptor->command_data_fields[i].field_name, key) == 0) {
+                    field_size = descriptor->command_data_fields[i].size;
+                    break;
+                }
+            }
+
+            if (field_size > 0) {
+                uint8_t field_data[256];  // 假设最大字节数为 256
+                hex_string_to_bytes(hex_str, field_data, field_size);  // 转换为字节数据
+
+                // 打印解析后的字节数据
+                printf("Field Data (Bytes): ");
+                for (size_t i = 0; i < field_size; ++i) {
+                    printf("0x%02X ", field_data[i]);
+                }
+                printf("\n");
+
+                // 将字节数据复制到 data 数组
+                memcpy(data + offset, field_data, field_size);
+                offset += field_size;
             }
         }
-        if (field_size > 0) {
-            memcpy(data + offset, field_data, field_size);
-            offset += field_size;
-        }
-
         item = item->next;
     }
-
     return data;
 }

@@ -1,15 +1,25 @@
-#include <stdio.h>
-#include <string.h>
-#include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-
+#include <stdio.h>
+#include "esp_log.h"
+#include "cJSON.h"
 #include "logic.h"
 #include "enum.h"
 
-// 日志标签
 static const char *TAG = "APP_MAIN";
 
+void print_json_result(cJSON *json_result) {
+    if (json_result) {
+        char *result_str = cJSON_Print(json_result);
+        if (result_str) {
+            ESP_LOGI(TAG, "Received parse result: %s", result_str);
+            free(result_str);  // 释放字符串内存
+        }
+        cJSON_Delete(json_result);  // 删除 JSON 对象
+    } else {
+        ESP_LOGE(TAG, "Received NULL JSON");
+    }
+}
 
 void app_main(void)
 {
@@ -23,9 +33,17 @@ void app_main(void)
         ESP_LOGI(TAG, "Logic layer initialized successfully");
     }
 
-    ret = logic_get_version();
+    // 获取设备版本信息并打印
+    cJSON *json_result = logic_get_version();
+    print_json_result(json_result);
 
-    ret = logic_switch_camera_mode(CAMERA_MODE_TIMELAPSE_MOTION);  // TODO 根据枚举切换模式 BUG
+    // 切换相机模式
+    cJSON *json_result2 = logic_switch_camera_mode(CAMERA_MODE_PHOTO);
+    print_json_result(json_result2);
+
+    // 开始录制
+    cJSON *json_result3 = logic_start_record();
+    print_json_result(json_result3);
 
     // ===== 后续逻辑循环 =====
     while (1) {

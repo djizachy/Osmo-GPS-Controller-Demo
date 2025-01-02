@@ -1,6 +1,5 @@
 #include <string.h>
 #include "ble.h"
-
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "esp_log.h"

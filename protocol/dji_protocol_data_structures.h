@@ -15,9 +15,11 @@ typedef struct {
 } data_field_t;
 
 // 声明模式切换命令帧和应答帧的字段描述符数组（extern 关键字声明，避免重复定义）
-extern const data_field_t MODE_SWITCH_COMMAND_DATA_FIELDS[];
-extern const data_field_t MODE_SWITCH_RESPONSE_DATA_FIELDS[];
-extern const data_field_t GET_VERSION_COMMAND_DATA_FIELDS[];
-extern const data_field_t GET_VERSION_RESPONSE_DATA_FIELDS[];
+extern const data_field_t MODE_SWITCH_CM_DF[];
+extern const data_field_t MODE_SWITCH_RE_DF[];
+extern const data_field_t GET_VERSION_CM_DF[];
+extern const data_field_t GET_VERSION_RE_DF[];
+extern const data_field_t RECORD_CONTROL_CM_DF[];
+extern const data_field_t RECORD_CONTROL_RE_DF[];
 
 #endif // DJI_PROTOCOL_DATA_STRUCTURES_H

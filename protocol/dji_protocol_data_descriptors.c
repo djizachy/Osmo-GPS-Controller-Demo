@@ -10,15 +10,15 @@
  */
 const data_descriptor_t data_descriptors[] = {
     {
-        0x1D,                                             // CmdSet: 命令集标识符
-        0x04,                                             // CmdID: 命令标识符
-        (data_field_t *)MODE_SWITCH_COMMAND_DATA_FIELDS,  // 命令帧字段指针
-        3,                                                // 命令帧字段数量
-        (data_field_t *)MODE_SWITCH_RESPONSE_DATA_FIELDS, // 应答帧字段指针
-        2                                                 // 应答帧字段数量
+        0x1D,                                   // CmdSet: 命令集标识符
+        0x04,                                   // CmdID: 命令标识符
+        (data_field_t *)MODE_SWITCH_CM_DF,      // 命令帧字段指针
+        3,                                      // 命令帧字段数量
+        (data_field_t *)MODE_SWITCH_RE_DF,      // 应答帧字段指针
+        2                                       // 应答帧字段数量
     },
-    {0x00, 0x00, (data_field_t *)GET_VERSION_COMMAND_DATA_FIELDS, 0, (data_field_t *)GET_VERSION_RESPONSE_DATA_FIELDS, 3}
+    {0x00, 0x00, (data_field_t *)GET_VERSION_CM_DF, 0, (data_field_t *)GET_VERSION_RE_DF, 3},
+    {0x1D, 0x03, (data_field_t *)RECORD_CONTROL_CM_DF, 3, (data_field_t *)RECORD_CONTROL_RE_DF, 2},
 };
 
-// 数据描述符数组的元素数量，便于遍历和动态处理
 const size_t DESCRIPTORS_COUNT = sizeof(data_descriptors) / sizeof(data_descriptors[0]);

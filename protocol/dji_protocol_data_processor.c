@@ -240,6 +240,18 @@ uint8_t* data_creator(uint8_t cmd_set, uint8_t cmd_id, const cJSON *key_values, 
     while (item) {
         const char *key = item->string;
         const uint8_t *field_data = (uint8_t *)cJSON_GetStringValue(item);
+
+        // 打印 field_data 的字符串和对应的十六进制字节
+        if (field_data) {
+            printf("Key: %s\n", key);
+            printf("Field Data (String): %s\n", field_data);
+            printf("Field Data (Hex): ");
+            for (size_t i = 0; i < strlen((char *)field_data); ++i) {
+                printf("%02X ", field_data[i]);
+            }
+            printf("\n");
+        }
+
         size_t field_size = 0;
         for (size_t i = 0; i < descriptor->command_data_field_count; ++i) {
             if (strcmp(descriptor->command_data_fields[i].field_name, key) == 0) {

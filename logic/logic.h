@@ -1,12 +1,7 @@
 #ifndef __LOGIC_H__
 #define __LOGIC_H__
 
-#include <stdint.h>
-#include <stddef.h>
-#include <stdbool.h>
-#include "esp_err.h"
 #include "cJSON.h"
-
 #include "enum.h"
 
 /**
@@ -20,10 +15,16 @@ esp_err_t logic_init(const char *camera_name);
 /**
  * @brief 切换相机模式
  *
- * @return esp_err_t  ESP_OK 成功, 其他失败
+ * @param mode 相机模式
+ * @return cJSON* 返回 JSON 数据，如果发生错误返回 NULL
  */
-esp_err_t logic_switch_camera_mode(camera_mode_t mode);
+cJSON* logic_switch_camera_mode(camera_mode_t mode);
 
-esp_err_t logic_get_version(void);
+// 获取版本号
+cJSON* logic_get_version(void);
+
+// 拍录控制
+cJSON* logic_start_record(void);
+cJSON* logic_stop_record(void);
 
 #endif // __LOGIC_H__

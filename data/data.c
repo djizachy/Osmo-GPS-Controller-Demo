@@ -1,11 +1,11 @@
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+#include "esp_log.h"
+#include "string.h"
+#include "cJSON.h"
 #include "data.h"
 #include "ble.h"
 #include "dji_protocol_parser.h"
-#include "cJSON.h"
-#include "esp_log.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/semphr.h"
-#include "string.h"
 
 #define TAG "DATA_LAYER"
 

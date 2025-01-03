@@ -142,7 +142,7 @@ crc32_t crc32_update(crc32_t crc, const void *data, size_t data_len)
 //     printf(format, "msb_mask", (unsigned long long int)0x80000000);
 // }
 
-uint32_t calculate_crc32(uint8_t *data, size_t length) {
+uint32_t calculate_crc32(const uint8_t *data, size_t length) {
     crc32_t crc = crc32_init();
     crc = crc32_update(crc, data, length);
     crc = crc32_finalize(crc);

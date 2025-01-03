@@ -1,6 +1,7 @@
 #ifndef DJI_PROTOCOL_DATA_STRUCTURES_H
 #define DJI_PROTOCOL_DATA_STRUCTURES_H
 
+#include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
 
@@ -21,5 +22,25 @@ extern const data_field_t GET_VERSION_CM_DF[];
 extern const data_field_t GET_VERSION_RE_DF[];
 extern const data_field_t RECORD_CONTROL_CM_DF[];
 extern const data_field_t RECORD_CONTROL_RE_DF[];
+
+// 定义命令帧、应答帧结构体
+typedef struct {
+    int32_t year_month_day;            // 年月日 (year*10000 + month*100 + day)
+    int32_t hour_minute_second;        // 时分秒 ((hour+8)*10000 + minute*100 + second)
+    int32_t gps_longitude;             // 经度 (value = 实际值 * 10^7)
+    int32_t gps_latitude;              // 纬度 (value = 实际值 * 10^7)
+    int32_t height;                    // 高度 单位：mm
+    float speed_to_north;              // 向北速度 单位：cm/s
+    float speed_to_east;               // 向东速度 单位：cm/s
+    float speed_to_wnward;             // 向下降速度 单位：cm/s
+    uint32_t vertical_accuracy;        // 垂直精度估计 单位：mm
+    uint32_t horizontal_accuracy;      // 水平精度估计 单位：mm
+    uint32_t speed_accuracy;           // 速度精度估计 单位：cm/s
+    uint32_t satellite_number;         // 卫星数量
+} gps_data_push_command_frame;
+
+typedef struct {
+    uint8_t ret_code;
+} gps_data_push_response_frame;
 
 #endif // DJI_PROTOCOL_DATA_STRUCTURES_H

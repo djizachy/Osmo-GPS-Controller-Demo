@@ -98,7 +98,7 @@ static inline crc16_t crc16_finalize(crc16_t crc)
     return crc;
 }
 
-uint16_t calculate_crc16(uint8_t *data, size_t length);
+uint16_t calculate_crc16(const uint8_t *data, size_t length);
 
 
 #ifdef __cplusplus

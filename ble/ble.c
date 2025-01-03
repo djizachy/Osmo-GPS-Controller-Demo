@@ -46,10 +46,10 @@ ble_profile_t s_ble_profile = {
 #define REMOTE_WRITE_CHAR_UUID       0xFFF5
 
 /* ESP-IDF 的 UUID 结构体用法 */
-static esp_bt_uuid_t s_filter_service_uuid = {
-    .len = ESP_UUID_LEN_16,
-    .uuid.uuid16 = REMOTE_TARGET_SERVICE_UUID,
-};
+// static esp_bt_uuid_t s_filter_service_uuid = {
+//     .len = ESP_UUID_LEN_16,
+//     .uuid.uuid16 = REMOTE_TARGET_SERVICE_UUID,
+// };
 
 static esp_bt_uuid_t s_filter_notify_char_uuid = {
     .len = ESP_UUID_LEN_16,
@@ -87,8 +87,7 @@ static void gattc_event_handler(esp_gattc_cb_event_t event,
 /* -------------------------
  *  初始化/扫描/连接相关接口
  * ------------------------- */
-esp_err_t ble_init(const char *remote_name)
-{
+esp_err_t ble_init(const char *remote_name) {
     if (!remote_name) {
         ESP_LOGE(TAG, "ble_init failed: remote_name is NULL");
         return ESP_ERR_INVALID_ARG;
@@ -164,8 +163,7 @@ esp_err_t ble_init(const char *remote_name)
     return ESP_OK;
 }
 
-esp_err_t ble_start_scanning_and_connect(void)
-{
+esp_err_t ble_start_scanning_and_connect(void) {
     /* 设置扫描参数 */
     esp_err_t ret = esp_ble_gap_set_scan_params(&s_ble_scan_params);
     if (ret) {
@@ -176,8 +174,7 @@ esp_err_t ble_start_scanning_and_connect(void)
     return ESP_OK;
 }
 
-esp_err_t ble_disconnect(void)
-{
+esp_err_t ble_disconnect(void) {
     if (s_ble_profile.connection_status.is_connected) {
         esp_ble_gattc_close(s_ble_profile.gattc_if, s_ble_profile.conn_id);
     }
@@ -187,8 +184,7 @@ esp_err_t ble_disconnect(void)
 /* -------------------------
  *  读写与 Notify 相关接口
  * ------------------------- */
-esp_err_t ble_read(uint16_t conn_id, uint16_t handle)
-{
+esp_err_t ble_read(uint16_t conn_id, uint16_t handle) {
     if (!s_ble_profile.connection_status.is_connected) {
         ESP_LOGW(TAG, "Not connected, skip read");
         return ESP_FAIL;
@@ -204,11 +200,7 @@ esp_err_t ble_read(uint16_t conn_id, uint16_t handle)
     return ret;
 }
 
-esp_err_t ble_write_without_response(uint16_t conn_id,
-                                     uint16_t handle,
-                                     const uint8_t *data,
-                                     size_t length)
-{
+esp_err_t ble_write_without_response(uint16_t conn_id, uint16_t handle, const uint8_t *data, size_t length) {
     if (!s_ble_profile.connection_status.is_connected) {
         ESP_LOGW(TAG, "Not connected, skip write_without_response");
         return ESP_FAIL;
@@ -226,11 +218,7 @@ esp_err_t ble_write_without_response(uint16_t conn_id,
     return ret;
 }
 
-esp_err_t ble_write_with_response(uint16_t conn_id,
-                                  uint16_t handle,
-                                  const uint8_t *data,
-                                  size_t length)
-{
+esp_err_t ble_write_with_response(uint16_t conn_id, uint16_t handle, const uint8_t *data, size_t length) {
     if (!s_ble_profile.connection_status.is_connected) {
         ESP_LOGW(TAG, "Not connected, skip write_with_response");
         return ESP_FAIL;
@@ -239,7 +227,7 @@ esp_err_t ble_write_with_response(uint16_t conn_id,
                                              conn_id,
                                              handle,
                                              length,
-                                             data,
+                                             (uint8_t *)data,
                                              ESP_GATT_WRITE_TYPE_RSP,
                                              ESP_GATT_AUTH_REQ_NONE);
     if (ret) {
@@ -248,8 +236,7 @@ esp_err_t ble_write_with_response(uint16_t conn_id,
     return ret;
 }
 
-esp_err_t ble_register_notify(uint16_t conn_id, uint16_t char_handle)
-{
+esp_err_t ble_register_notify(uint16_t conn_id, uint16_t char_handle) {
     if (!s_ble_profile.connection_status.is_connected) {
         ESP_LOGW(TAG, "Not connected, skip register_notify");
         return ESP_FAIL;
@@ -264,16 +251,14 @@ esp_err_t ble_register_notify(uint16_t conn_id, uint16_t char_handle)
     return ret;
 }
 
-esp_err_t ble_unregister_notify(uint16_t conn_id, uint16_t char_handle)
-{
+esp_err_t ble_unregister_notify(uint16_t conn_id, uint16_t char_handle) {
     /* 实际上需要获取到对应的描述符 handle，然后写 0x0000 进行关闭 */
     /* 这里只是演示一下流程，需要时可在 register_notify 时保存 descr handle */
     ESP_LOGI(TAG, "ble_unregister_notify called (demo), not fully implemented");
     return ESP_OK;
 }
 
-void ble_set_notify_callback(ble_notify_callback_t cb)
-{
+void ble_set_notify_callback(ble_notify_callback_t cb) {
     s_notify_cb = cb;
 }
 
@@ -282,8 +267,7 @@ void ble_set_notify_callback(ble_notify_callback_t cb)
  * ---------------------------------------------------------------- */
 
 /* 扫描到目标设备，尝试连接 */
-static void try_to_connect(esp_ble_gap_cb_param_t *scan_result)
-{
+static void try_to_connect(esp_ble_gap_cb_param_t *scan_result) {
     s_connecting = true;
     ESP_LOGI(TAG, "Found target device=%s, stop scanning & connect...", s_remote_device_name);
     esp_ble_gap_stop_scanning();
@@ -294,8 +278,7 @@ static void try_to_connect(esp_ble_gap_cb_param_t *scan_result)
                        true);
 }
 
-static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
-{
+static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param) {
     switch (event) {
     case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT:
         /* 开始扫描 */
@@ -339,15 +322,12 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
     }
 }
 
-static void gattc_search_service(esp_gatt_if_t gattc_if, uint16_t conn_id)
-{
-    esp_ble_gattc_search_service(gattc_if, conn_id, &s_filter_service_uuid);
-}
+// 暂时未用到
+// static void gattc_search_service(esp_gatt_if_t gattc_if, uint16_t conn_id) {
+//     esp_ble_gattc_search_service(gattc_if, conn_id, &s_filter_service_uuid);
+// }
 
-static void gattc_event_handler(esp_gattc_cb_event_t event,
-                                esp_gatt_if_t gattc_if,
-                                esp_ble_gattc_cb_param_t *param)
-{
+static void gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param) {
     switch (event) {
     case ESP_GATTC_REG_EVT: {
         if (param->reg.status == ESP_GATT_OK) {

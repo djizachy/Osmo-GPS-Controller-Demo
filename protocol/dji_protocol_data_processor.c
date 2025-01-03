@@ -27,6 +27,15 @@ const data_descriptor_t *find_descriptor(uint8_t cmd_set, uint8_t cmd_id) {
     return NULL;
 }
 
+const structure_descriptor_t *find_descriptor_by_structure(uint8_t cmd_set, uint8_t cmd_id) {
+    for (size_t i = 0; i < STRUCTURE_DESCRIPTORS_COUNT; ++i) {
+        if (structure_descriptors[i].cmd_set == cmd_set && structure_descriptors[i].cmd_id == cmd_id) {
+            return &structure_descriptors[i];
+        }
+    }
+    return NULL;
+}
+
 /**
  * @brief 解析单个字段。
  * 
@@ -170,6 +179,24 @@ int data_parser(uint8_t cmd_set, uint8_t cmd_id, const uint8_t *data, size_t dat
     return parse_fields(data, data_length, descriptor->response_data_field_count, descriptor->response_data_fields, output);
 }
 
+int data_parser_by_structure(uint8_t cmd_set, uint8_t cmd_id, const uint8_t *data, size_t data_length, cJSON *output) {
+    // 查找对应的命令描述符
+    const structure_descriptor_t *descriptor = find_descriptor_by_structure(cmd_set, cmd_id);
+    if (descriptor == NULL) {
+        fprintf(stderr, "Descriptor not found for CmdSet: 0x%02X, CmdID: 0x%02X\n", cmd_set, cmd_id);
+        return -1;
+    }
+
+    // 调用对应的解析函数
+    if (descriptor->parser == NULL) {
+        fprintf(stderr, "Parser function is NULL for CmdSet: 0x%02X, CmdID: 0x%02X\n", cmd_set, cmd_id);
+        return -1;
+    }
+
+    return descriptor->parser(data, data_length, output);
+}
+
+// 工具函数
 void hex_string_to_bytes(const char *hex_str, uint8_t *data, size_t length) {
     for (size_t i = 0; i < length; i++) {
         sscanf(&hex_str[i * 2], "%2hhX", &data[i]);  // 每两位字符转为一个字节
@@ -256,4 +283,21 @@ uint8_t* data_creator(uint8_t cmd_set, uint8_t cmd_id, const cJSON *key_values, 
         item = item->next;
     }
     return data;
+}
+
+uint8_t* data_creator_by_structure(uint8_t cmd_set, uint8_t cmd_id, const void *structure, size_t *data_length) {
+    // 查找对应的命令描述符
+    const structure_descriptor_t *descriptor = find_descriptor_by_structure(cmd_set, cmd_id);
+    if (descriptor == NULL) {
+        fprintf(stderr, "Descriptor not found for CmdSet: 0x%02X, CmdID: 0x%02X\n", cmd_set, cmd_id);
+        return NULL;
+    }
+
+    // 调用对应的 creator 函数封装数据段
+    if (descriptor->creator == NULL) {
+        fprintf(stderr, "Creator function is NULL for CmdSet: 0x%02X, CmdID: 0x%02X\n", cmd_set, cmd_id);
+        return NULL;
+    }
+
+    return descriptor->creator(structure, data_length);
 }

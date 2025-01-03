@@ -46,7 +46,7 @@
     PROTOCOL_TAIL_LENGTH \
 )
 
-int protocol_parse_notification(uint8_t *frame_data, size_t frame_length, protocol_frame_t *frame) {
+int protocol_parse_notification(const uint8_t *frame_data, size_t frame_length, protocol_frame_t *frame) {
     // 检查最小帧长度
     if (frame_length < 16) { // SOF(1) + Ver/Length(2) + CmdType(1) + ENC(1) + RES(3) + SEQ(2) + CRC-16(2) + CRC-32(4)
         ESP_LOGE(TAG, "Frame too short to be valid");
@@ -119,7 +119,7 @@ int protocol_parse_notification(uint8_t *frame_data, size_t frame_length, protoc
     return 0;
 }
 
-cJSON* protocol_parse_data(uint8_t *data, size_t data_length) {
+cJSON* protocol_parse_data(const uint8_t *data, size_t data_length) {
     if (data == NULL || data_length < 2) {
         ESP_LOGE(TAG, "Invalid data segment: data is NULL or too short");
         return NULL;  // 返回 NULL，表示解析失败
@@ -131,9 +131,17 @@ cJSON* protocol_parse_data(uint8_t *data, size_t data_length) {
 
     // 查找对应的命令描述符
     const data_descriptor_t *descriptor = find_descriptor(cmd_set, cmd_id);
+
+    // 如果找不到描述符，尝试通过结构体描述符查找
+    const structure_descriptor_t *structure_descriptor = NULL;
+    
     if (descriptor == NULL) {
-        ESP_LOGE(TAG, "No descriptor found for CmdSet 0x%02X and CmdID 0x%02X", cmd_set, cmd_id);
-        return NULL;  // 返回 NULL，表示没有找到描述符，解析失败
+        ESP_LOGW(TAG, "No descriptor found for CmdSet 0x%02X and CmdID 0x%02X, trying structure descriptor", cmd_set, cmd_id);
+        structure_descriptor = find_descriptor_by_structure(cmd_set, cmd_id);
+        if (structure_descriptor == NULL) {
+            ESP_LOGE(TAG, "No structure descriptor found for CmdSet 0x%02X and CmdID 0x%02X", cmd_set, cmd_id);
+            return NULL;  // 两种描述符都找不到，返回 NULL
+        }
     }
 
     // 取出应答帧数据
@@ -142,32 +150,50 @@ cJSON* protocol_parse_data(uint8_t *data, size_t data_length) {
 
     ESP_LOGI(TAG, "CmdSet: 0x%02X, CmdID: 0x%02X", cmd_set, cmd_id);
 
-    // 根据命令描述符中的应答帧字段数量进行动态处理
-    size_t response_field_count = descriptor->response_data_field_count;
-
     // 使用 cJSON 创建一个 JSON 对象来存储响应数据
     cJSON *response_json = cJSON_CreateObject();
 
-    // 调用通用数据解析函数
-    int result = data_parser(cmd_set, cmd_id, response_data, response_length, response_json);
-
-    if (result == 0) {
-        // 如果解析成功，处理解析后的字段（此处可以根据需求进一步处理解析的字段）
-        ESP_LOGI(TAG, "Data parsed successfully for CmdSet 0x%02X and CmdID 0x%02X", cmd_set, cmd_id);
-    } else {
-        ESP_LOGE(TAG, "Failed to parse data for CmdSet 0x%02X and CmdID 0x%02X", cmd_set, cmd_id);
-        cJSON_Delete(response_json);  // 解析失败，删除 JSON 对象
-        return NULL;  // 返回 NULL，表示解析失败
+    // 调用解析函数
+    int result = -1;  // 用于存储解析结果
+    if (descriptor != NULL) {
+        // 如果找到 data_descriptor，则使用通用数据解析函数
+        result = data_parser(cmd_set, cmd_id, response_data, response_length, response_json);
+    } else if (structure_descriptor != NULL && structure_descriptor->parser != NULL) {
+        // 如果找到 structure_descriptor，则使用结构体解析函数
+        result = structure_descriptor->parser(response_data, response_length, response_json);
     }
 
-    // 返回解析后的 JSON 对象，供上层调用
+    // 检查解析结果
+    if (result == 0) {
+        // 解析成功
+        ESP_LOGI(TAG, "Data parsed successfully for CmdSet 0x%02X and CmdID 0x%02X", cmd_set, cmd_id);
+    } else {
+        // 解析失败
+        ESP_LOGE(TAG, "Failed to parse data for CmdSet 0x%02X and CmdID 0x%02X", cmd_set, cmd_id);
+        cJSON_Delete(response_json);  // 删除 JSON 对象
+        return NULL;  // 返回 NULL
+    }
+
+    // 返回解析后的 JSON 对象
     return response_json;
 }
 
-uint8_t* protocol_create_frame(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, const cJSON *key_values, uint16_t seq, size_t *frame_length) {
-    // 调用 data_creator 生成有效载荷数据
+uint8_t* protocol_create_frame(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, const void *key_values_or_structure, uint16_t seq, size_t *frame_length, uint8_t create_mode) {
     size_t data_length = 0;
-    uint8_t *payload_data = data_creator(cmd_set, cmd_id, key_values, &data_length);
+    uint8_t *payload_data = NULL;
+
+    // 根据创建方式调用不同的函数
+    if (create_mode == 0) {
+        // 使用 data_creator
+        payload_data = data_creator(cmd_set, cmd_id, (const cJSON *)key_values_or_structure, &data_length);
+    } else if (create_mode == 1) {
+        // 使用 data_creator_by_structure
+        payload_data = data_creator_by_structure(cmd_set, cmd_id, key_values_or_structure, &data_length);
+    } else {
+        // 无效的创建方式
+        ESP_LOGE(TAG, "Invalid create_mode: %d", create_mode);
+        return NULL;
+    }
     
     // payload_data 为 NULL 且 data_length 为 0 时视为空数据段，不报错
     if (payload_data == NULL && data_length > 0) {

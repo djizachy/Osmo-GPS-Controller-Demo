@@ -7,6 +7,7 @@
 #include "data.h"
 #include "ble.h"
 #include "dji_protocol_parser.h"
+#include "dji_protocol_data_structures.h"
 
 #define TAG "LOGIC_LAYER"
 
@@ -81,6 +82,20 @@ esp_err_t logic_init(const char *camera_name) {
     return ESP_OK;
 }
 
+esp_err_t disconnect_camera(void) {
+    ESP_LOGI(TAG, "%s: Disconnecting camera", __FUNCTION__);
+
+    // 调用 BLE 层的 ble_disconnect 函数
+    esp_err_t ret = ble_disconnect();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "%s: Failed to disconnect camera, error: %s", __FUNCTION__, esp_err_to_name(ret));
+        return ret;  // 返回错误
+    }
+
+    ESP_LOGI(TAG, "%s: Camera disconnected successfully", __FUNCTION__);
+    return ESP_OK;  // 返回成功
+}
+
 /**
  * @brief 生成下一个序列号
  *
@@ -96,26 +111,46 @@ static uint16_t generate_seq(void) {
  * @param cmd_set 命令集
  * @param cmd_id 命令 ID
  * @param cmd_type 命令类型
- * @param root JSON 数据对象
+ * @param input_raw_data 数据对象
  * @param seq 序列号
  * @param timeout_ms 等待结果的超时时间（毫秒）
+ * @param uint8_t create_mode
  * @return cJSON* 成功返回解析结果的JSON对象，失败返回NULL
  */
-static cJSON* send_command(uint8_t cmd_set, uint8_t cmd_id, cmd_type_t cmd_type, 
-                           cJSON *root, uint16_t seq, int timeout_ms) {
+static cJSON* send_command(uint8_t cmd_set, uint8_t cmd_id, cmd_type_t cmd_type, const void *input_raw_data, uint16_t seq, int timeout_ms, uint8_t create_mode) {
     esp_err_t ret;
 
     // 打印生成的 JSON 数据，便于调试
-    char *json_str = cJSON_PrintUnformatted(root);
-    ESP_LOGI(TAG, "Constructed JSON: %s", json_str);
+    if (create_mode == 0) {
+        const cJSON *root = (const cJSON *)input_raw_data;
+        if (root != NULL) {
+            char *json_str = cJSON_PrintUnformatted(root);
+            ESP_LOGI(TAG, "Constructed JSON: %s", json_str);
+            free(json_str);
+        } else {
+            ESP_LOGE(TAG, "Invalid input: root is NULL in JSON mode");
+            return NULL;
+        }
+    } else if (create_mode == 1) {
+        // 如果是结构体模式，打印调试信息
+        if (input_raw_data == NULL) {
+            ESP_LOGE(TAG, "Invalid input: input_data is NULL in structure mode");
+            return NULL;
+        }
+        ESP_LOGI(TAG, "Using structure-based frame creation mode.");
+    } else {
+        ESP_LOGE(TAG, "Invalid create_mode: %d", create_mode);
+        return NULL;
+    }
 
     // 创建协议帧
     size_t frame_length_out = 0;
-    uint8_t *protocol_frame = protocol_create_frame(cmd_set, cmd_id, cmd_type, root, seq, &frame_length_out);
+    uint8_t *protocol_frame = protocol_create_frame(cmd_set, cmd_id, cmd_type, input_raw_data, seq, &frame_length_out, create_mode);
     if (protocol_frame == NULL) {
         ESP_LOGE(TAG, "Failed to create protocol frame");
-        cJSON_Delete(root);
-        free(json_str);
+        if (create_mode == 0) {
+            cJSON_Delete((cJSON *)input_raw_data);
+        }
         return NULL;
     }
 
@@ -223,7 +258,7 @@ cJSON* logic_switch_camera_mode(camera_mode_t mode) {
     cJSON_AddStringToObject(root, "reserved", "01473936");       // 预留字段
 
     // 调用通用函数并返回结果
-    return send_command(0x1D, 0x04, CMD_TYPE_WITH_RESPONSE_OR_NOT, root, seq, 5000);
+    return send_command(0x1D, 0x04, CMD_TYPE_WITH_RESPONSE_OR_NOT, root, seq, 5000, 0);
 }
 
 /**
@@ -236,7 +271,7 @@ cJSON* logic_get_version(void) {
 
     uint16_t seq = generate_seq();
     cJSON *root = cJSON_CreateObject();
-    return send_command(0x00, 0x00, CMD_TYPE_WAIT_RESULT, root, seq, 5000);
+    return send_command(0x00, 0x00, CMD_TYPE_WAIT_RESULT, root, seq, 5000, 0);
 }
 
 /**
@@ -256,7 +291,7 @@ cJSON* logic_start_record(void) {
     cJSON_AddStringToObject(root, "reserved", "00000000");       // 预留字段
 
     // 调用通用函数并返回结果
-    return send_command(0x1D, 0x03, CMD_TYPE_WITH_RESPONSE_OR_NOT, root, seq, 5000);
+    return send_command(0x1D, 0x03, CMD_TYPE_WITH_RESPONSE_OR_NOT, root, seq, 5000, 0);
 }
 
 /**
@@ -276,5 +311,36 @@ cJSON* logic_stop_record(void) {
     cJSON_AddStringToObject(root, "reserved", "00000000");       // 预留字段
 
     // 调用通用函数并返回结果
-    return send_command(0x1D, 0x03, CMD_TYPE_WITH_RESPONSE_OR_NOT, root, seq, 5000);
+    return send_command(0x1D, 0x03, CMD_TYPE_WITH_RESPONSE_OR_NOT, root, seq, 5000, 0);
+}
+
+cJSON* logic_push_gps_data(int32_t year_month_day, int32_t hour_minute_second,
+                            int32_t gps_longitude, int32_t gps_latitude,
+                            int32_t height, float speed_to_north, float speed_to_east,
+                            float speed_to_wnward, uint32_t vertical_accuracy,
+                            uint32_t horizontal_accuracy, uint32_t speed_accuracy,
+                            uint32_t satellite_number) {
+    ESP_LOGI(TAG, "%s: Pushing GPS data", __FUNCTION__);
+
+    // 生成序列号
+    uint16_t seq = generate_seq();
+
+    // 创建 gps_data_push_command_frame 结构体并填充数据
+    gps_data_push_command_frame gps_data = {
+        .year_month_day = year_month_day,
+        .hour_minute_second = hour_minute_second,
+        .gps_longitude = gps_longitude,
+        .gps_latitude = gps_latitude,
+        .height = height,
+        .speed_to_north = speed_to_north,
+        .speed_to_east = speed_to_east,
+        .speed_to_wnward = speed_to_wnward,
+        .vertical_accuracy = vertical_accuracy,
+        .horizontal_accuracy = horizontal_accuracy,
+        .speed_accuracy = speed_accuracy,
+        .satellite_number = satellite_number
+    };
+
+    // 直接调用 send_command，并传递结构体指针
+    return send_command(0x00, 0x17, CMD_TYPE_NO_RESPONSE, &gps_data, seq, 5000, 1);
 }

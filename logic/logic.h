@@ -12,6 +12,8 @@
  */
 esp_err_t logic_init(const char *camera_name);
 
+esp_err_t disconnect_camera(void);
+
 /**
  * @brief 切换相机模式
  *
@@ -26,5 +28,13 @@ cJSON* logic_get_version(void);
 // 拍录控制
 cJSON* logic_start_record(void);
 cJSON* logic_stop_record(void);
+
+// GPS信息推送
+cJSON* logic_push_gps_data(int32_t year_month_day, int32_t hour_minute_second,
+                            int32_t gps_longitude, int32_t gps_latitude,
+                            int32_t height, float speed_to_north, float speed_to_east,
+                            float speed_to_wnward, uint32_t vertical_accuracy,
+                            uint32_t horizontal_accuracy, uint32_t speed_accuracy,
+                            uint32_t satellite_number);
 
 #endif // __LOGIC_H__

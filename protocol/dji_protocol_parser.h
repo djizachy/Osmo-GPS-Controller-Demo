@@ -29,7 +29,7 @@ typedef struct {
  * @param frame 输出的解析结果结构体。
  * @return 0 表示成功，非 0 表示错误。
  */
-int protocol_parse_notification(uint8_t *frame_data, size_t frame_length, protocol_frame_t *frame);
+int protocol_parse_notification(const uint8_t *frame_data, size_t frame_length, protocol_frame_t *frame);
 
 /**
  * @brief 解析协议数据段 (DATA 字段) 并返回解析结果的 JSON 对象。
@@ -42,7 +42,7 @@ int protocol_parse_notification(uint8_t *frame_data, size_t frame_length, protoc
  * 
  * @return 返回一个 `cJSON` 对象，包含解析后的数据；如果解析失败，返回 `NULL`。
  */
-cJSON* protocol_parse_data(uint8_t *data, size_t data_length);
+cJSON* protocol_parse_data(const uint8_t *data, size_t data_length);
 
 
 /**
@@ -55,8 +55,9 @@ cJSON* protocol_parse_data(uint8_t *data, size_t data_length);
  * @param key_value_count key-value 数组的大小。
  * @param seq 帧的序列号。
  * @param frame_length 生成的帧总长度（包括协议头、有效载荷和校验码）。
+ * @param create_mode 创建方式，0为无结构体法，1为结构体法。
  * @return 动态分配的帧数据（需要外部释放），如果失败返回 NULL。
  */
-uint8_t* protocol_create_frame(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, const cJSON *key_values, uint16_t seq, size_t *frame_length);
+uint8_t* protocol_create_frame(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, const void *key_values_or_structure, uint16_t seq, size_t *frame_length, uint8_t create_mode);
 
 #endif // DJI_PROTOCOL_PARSER_H

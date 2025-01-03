@@ -216,6 +216,7 @@ esp_err_t data_wait_for_result(uint16_t seq, int timeout_ms, cJSON **out_json) {
     // 等待信号量被释放
     if (xSemaphoreTake(entry->sem, pdMS_TO_TICKS(timeout_ms)) != pdTRUE) {
         ESP_LOGW(TAG, "Wait for seq=0x%04X timed out", seq);
+        free_seq_entry(entry);
         return ESP_ERR_TIMEOUT;
     }
 

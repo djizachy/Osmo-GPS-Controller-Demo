@@ -98,7 +98,7 @@ static inline crc32_t crc32_finalize(crc32_t crc)
     return crc;
 }
 
-uint32_t calculate_crc32(uint8_t *data, size_t length);
+uint32_t calculate_crc32(const uint8_t *data, size_t length);
 
 #ifdef __cplusplus
 }           /* closing brace for extern "C" */

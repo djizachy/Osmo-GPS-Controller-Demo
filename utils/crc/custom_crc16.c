@@ -141,7 +141,7 @@ crc16_t crc16_update(crc16_t crc, const void *data, size_t data_len)
 //     printf(format, "msb_mask", (unsigned long long int)0x8000);
 // }
 
-uint16_t calculate_crc16(uint8_t *data, size_t length) {
+uint16_t calculate_crc16(const uint8_t *data, size_t length) {
     crc16_t crc = crc_init();
     crc = crc16_update(crc, data, length);
     crc = crc16_finalize(crc);

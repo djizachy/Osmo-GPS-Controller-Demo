@@ -32,9 +32,9 @@ const structure_descriptor_t *find_descriptor_by_structure(uint8_t cmd_set, uint
  * @param output 输出的 cJSON 对象，用于存储解析后的字段名及其对应值。
  * @return 0 表示成功，非 0 表示错误。
  */
-int data_parser(uint8_t cmd_set, uint8_t cmd_id, const uint8_t *data, size_t data_length, cJSON *output);
+int data_parser(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, const uint8_t *data, size_t data_length, cJSON *output);
 
-int data_parser_by_structure(uint8_t cmd_set, uint8_t cmd_id, const uint8_t *data, size_t data_length, cJSON *output);
+int data_parser_by_structure(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, const uint8_t *data, size_t data_length, cJSON *output);
 
 /**
  * @brief 根据 CmdSet 和 CmdID 以及 key-value 数据，创建数据帧。
@@ -46,13 +46,13 @@ int data_parser_by_structure(uint8_t cmd_set, uint8_t cmd_id, const uint8_t *dat
  * 
  * @param cmd_set CmdSet 字段值（命令集标识符）。
  * @param cmd_id CmdID 字段值（命令标识符）。
+ * @param cmd_type 命令类型。
  * @param key_values 输入的 cJSON 对象，包含待封装的数据。
  * @param data_length 输出的帧总长度（不包括 CmdSet 和 CmdID 的长度）。
  * @return 动态分配的帧数据（需要外部释放），如果失败返回 NULL。
  */
-uint8_t* data_creator(uint8_t cmd_set, uint8_t cmd_id, const cJSON *key_values, size_t *data_length);
+uint8_t* data_creator(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, const cJSON *key_values, size_t *data_length);
 
-// 测试
-uint8_t* data_creator_by_structure(uint8_t cmd_set, uint8_t cmd_id, const void *structure, size_t *data_length);
+uint8_t* data_creator_by_structure(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, const void *structure, size_t *data_length);
 
 #endif // DJI_PROTOCOL_DATA_PROCESSOR_H

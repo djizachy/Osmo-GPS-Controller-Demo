@@ -119,7 +119,7 @@ int protocol_parse_notification(const uint8_t *frame_data, size_t frame_length, 
     return 0;
 }
 
-cJSON* protocol_parse_data(const uint8_t *data, size_t data_length) {
+cJSON* protocol_parse_data(const uint8_t *data, size_t data_length, uint8_t cmd_type) {
     if (data == NULL || data_length < 2) {
         ESP_LOGE(TAG, "Invalid data segment: data is NULL or too short");
         return NULL;  // 返回 NULL，表示解析失败
@@ -157,10 +157,10 @@ cJSON* protocol_parse_data(const uint8_t *data, size_t data_length) {
     int result = -1;  // 用于存储解析结果
     if (descriptor != NULL) {
         // 如果找到 data_descriptor，则使用通用数据解析函数
-        result = data_parser(cmd_set, cmd_id, response_data, response_length, response_json);
+        result = data_parser(cmd_set, cmd_id, cmd_type, response_data, response_length, response_json);
     } else if (structure_descriptor != NULL && structure_descriptor->parser != NULL) {
         // 如果找到 structure_descriptor，则使用结构体解析函数
-        result = structure_descriptor->parser(response_data, response_length, response_json);
+        result = data_parser_by_structure(cmd_set, cmd_id, cmd_type, response_data, response_length, response_json);
     }
 
     // 检查解析结果
@@ -185,10 +185,10 @@ uint8_t* protocol_create_frame(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type
     // 根据创建方式调用不同的函数
     if (create_mode == 0) {
         // 使用 data_creator
-        payload_data = data_creator(cmd_set, cmd_id, (const cJSON *)key_values_or_structure, &data_length);
+        payload_data = data_creator(cmd_set, cmd_id, cmd_type, (const cJSON *)key_values_or_structure, &data_length);
     } else if (create_mode == 1) {
         // 使用 data_creator_by_structure
-        payload_data = data_creator_by_structure(cmd_set, cmd_id, key_values_or_structure, &data_length);
+        payload_data = data_creator_by_structure(cmd_set, cmd_id, cmd_type, key_values_or_structure, &data_length);
     } else {
         // 无效的创建方式
         ESP_LOGE(TAG, "Invalid create_mode: %d", create_mode);

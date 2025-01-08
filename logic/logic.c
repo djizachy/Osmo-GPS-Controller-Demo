@@ -1,3 +1,4 @@
+#include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
@@ -82,18 +83,18 @@ esp_err_t logic_init(const char *camera_name) {
     return ESP_OK;
 }
 
-esp_err_t disconnect_camera(void) {
+int logic_disconnect_camera(void) {
     ESP_LOGI(TAG, "%s: Disconnecting camera", __FUNCTION__);
 
     // 调用 BLE 层的 ble_disconnect 函数
     esp_err_t ret = ble_disconnect();
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "%s: Failed to disconnect camera, error: %s", __FUNCTION__, esp_err_to_name(ret));
-        return ret;  // 返回错误
+        ESP_LOGE(TAG, "%s: Failed to disconnect camera, BLE error: %s", __FUNCTION__, esp_err_to_name(ret));
+        return -1;  // 返回自定义失败状态码
     }
 
     ESP_LOGI(TAG, "%s: Camera disconnected successfully", __FUNCTION__);
-    return ESP_OK;  // 返回成功
+    return 0;  // 返回自定义成功状态码
 }
 
 /**
@@ -117,7 +118,7 @@ static uint16_t generate_seq(void) {
  * @param uint8_t create_mode
  * @return cJSON* 成功返回解析结果的JSON对象，失败返回NULL
  */
-static cJSON* send_command(uint8_t cmd_set, uint8_t cmd_id, cmd_type_t cmd_type, const void *input_raw_data, uint16_t seq, int timeout_ms, uint8_t create_mode) {
+static cJSON* send_command(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, const void *input_raw_data, uint16_t seq, int timeout_ms, uint8_t create_mode) {
     esp_err_t ret;
 
     // 打印生成的 JSON 数据，便于调试
@@ -169,7 +170,8 @@ static cJSON* send_command(uint8_t cmd_set, uint8_t cmd_id, cmd_type_t cmd_type,
     cJSON *json_result = NULL;
 
     switch (cmd_type) {
-        case CMD_TYPE_NO_RESPONSE:
+        case CMD_NO_RESPONSE:
+        case ACK_NO_RESPONSE:
             // 发送数据后不需要应答
             ret = data_write_without_response(seq, protocol_frame, frame_length_out);
             if (ret != ESP_OK) {
@@ -180,7 +182,8 @@ static cJSON* send_command(uint8_t cmd_set, uint8_t cmd_id, cmd_type_t cmd_type,
             ESP_LOGI(TAG, "Data frame sent without response.");
             break;
 
-        case CMD_TYPE_WITH_RESPONSE_OR_NOT:
+        case CMD_RESPONSE_OR_NOT:
+        case ACK_RESPONSE_OR_NOT:
             // 发送数据后需要应答，等待结果但不报错
             ret = data_write_with_response(seq, protocol_frame, frame_length_out);
             if (ret != ESP_OK) {
@@ -191,7 +194,7 @@ static cJSON* send_command(uint8_t cmd_set, uint8_t cmd_id, cmd_type_t cmd_type,
             ESP_LOGI(TAG, "Data frame sent, waiting for response...");
             
             // 等待解析结果（如果有结果则返回）
-            ret = data_wait_for_result(seq, timeout_ms, &json_result);
+            ret = data_wait_for_result_by_seq(seq, timeout_ms, &json_result);
             if (ret != ESP_OK) {
                 ESP_LOGW(TAG, "No result received, but continuing (seq=0x%04X)", seq);
                 // 返回NULL表示没有解析结果，但不报错
@@ -199,7 +202,8 @@ static cJSON* send_command(uint8_t cmd_set, uint8_t cmd_id, cmd_type_t cmd_type,
 
             break;
 
-        case CMD_TYPE_WAIT_RESULT:
+        case CMD_WAIT_RESULT:
+        case ACK_WAIT_RESULT:
             // 发送数据后需要应答，等待结果并报错
             ret = data_write_with_response(seq, protocol_frame, frame_length_out);
             if (ret != ESP_OK) {
@@ -210,7 +214,7 @@ static cJSON* send_command(uint8_t cmd_set, uint8_t cmd_id, cmd_type_t cmd_type,
             ESP_LOGI(TAG, "Data frame sent, waiting for result...");
 
             // 等待解析结果
-            ret = data_wait_for_result(seq, timeout_ms, &json_result);
+            ret = data_wait_for_result_by_seq(seq, timeout_ms, &json_result);
             if (ret != ESP_OK) {
                 ESP_LOGE(TAG, "Failed to get parse result for seq=0x%04X, error: 0x%x", seq, ret);
                 free(protocol_frame);
@@ -258,7 +262,7 @@ cJSON* logic_switch_camera_mode(camera_mode_t mode) {
     cJSON_AddStringToObject(root, "reserved", "01473936");       // 预留字段
 
     // 调用通用函数并返回结果
-    return send_command(0x1D, 0x04, CMD_TYPE_WITH_RESPONSE_OR_NOT, root, seq, 5000, 0);
+    return send_command(0x1D, 0x04, CMD_RESPONSE_OR_NOT, root, seq, 5000, CREATE_MODE_CJSON);
 }
 
 /**
@@ -271,7 +275,7 @@ cJSON* logic_get_version(void) {
 
     uint16_t seq = generate_seq();
     cJSON *root = cJSON_CreateObject();
-    return send_command(0x00, 0x00, CMD_TYPE_WAIT_RESULT, root, seq, 5000, 0);
+    return send_command(0x00, 0x00, CMD_WAIT_RESULT, root, seq, 5000, CREATE_MODE_CJSON);
 }
 
 /**
@@ -291,7 +295,7 @@ cJSON* logic_start_record(void) {
     cJSON_AddStringToObject(root, "reserved", "00000000");       // 预留字段
 
     // 调用通用函数并返回结果
-    return send_command(0x1D, 0x03, CMD_TYPE_WITH_RESPONSE_OR_NOT, root, seq, 5000, 0);
+    return send_command(0x1D, 0x03, CMD_RESPONSE_OR_NOT, root, seq, 5000, CREATE_MODE_CJSON);
 }
 
 /**
@@ -311,7 +315,7 @@ cJSON* logic_stop_record(void) {
     cJSON_AddStringToObject(root, "reserved", "00000000");       // 预留字段
 
     // 调用通用函数并返回结果
-    return send_command(0x1D, 0x03, CMD_TYPE_WITH_RESPONSE_OR_NOT, root, seq, 5000, 0);
+    return send_command(0x1D, 0x03, CMD_RESPONSE_OR_NOT, root, seq, 5000, CREATE_MODE_CJSON);
 }
 
 cJSON* logic_push_gps_data(int32_t year_month_day, int32_t hour_minute_second,
@@ -342,5 +346,105 @@ cJSON* logic_push_gps_data(int32_t year_month_day, int32_t hour_minute_second,
     };
 
     // 直接调用 send_command，并传递结构体指针
-    return send_command(0x00, 0x17, CMD_TYPE_NO_RESPONSE, &gps_data, seq, 5000, 1);
+    return send_command(0x00, 0x17, CMD_NO_RESPONSE, &gps_data, seq, 5000, CREATE_MODE_STRUCT);
+}
+
+cJSON* logic_connect(uint32_t device_id, uint8_t mac_addr_len, const int8_t *mac_addr,
+                     uint32_t fw_version, uint8_t verify_mode, uint16_t verify_data,
+                     uint8_t camera_reserved) {
+
+    ESP_LOGI(TAG, "%s: Starting connection logic", __FUNCTION__);
+    uint16_t seq = generate_seq();
+
+    connection_request_command_frame connection_request = {
+        .device_id = device_id,
+        .mac_addr_len = mac_addr_len,
+        .fw_version = fw_version,
+        .verify_mode = verify_mode,
+        .verify_data = verify_data,
+    };
+    memcpy(connection_request.mac_addr, mac_addr, mac_addr_len);
+
+    // 2. 发送连接请求命令
+    ESP_LOGI(TAG, "Sending connection request to camera...");
+    cJSON *response = send_command(0x00, 0x19, CMD_WAIT_RESULT, &connection_request, seq, 5000, CREATE_MODE_STRUCT);
+    if (!response) {
+        ESP_LOGE(TAG, "Failed to send connection request");
+        logic_disconnect_camera();
+        return NULL;
+    }
+
+    // 解析相机返回的响应
+    int ret_code = cJSON_GetObjectItem(response, "ret_code")->valueint;
+    if (ret_code != 0) {
+        ESP_LOGE(TAG, "Connection request rejected by camera, ret_code: %d", ret_code);
+        cJSON_Delete(response);
+        logic_disconnect_camera();
+        return NULL;
+    }
+
+    ESP_LOGI(TAG, "Connection request accepted, waiting for camera to send connection command...");
+
+    // 3. 等待相机发送连接请求
+    cJSON *json_result = NULL;
+    uint16_t received_seq = 0;
+    esp_err_t ret = data_wait_for_result_by_cmd(0x00, 0x19, 30000, &json_result, &received_seq);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Timeout or error waiting for camera connection command");
+        logic_disconnect_camera();
+        return NULL;
+    }
+
+    // 解析相机发送的连接请求命令
+    cJSON *verify_mode_item = cJSON_GetObjectItem(json_result, "verify_mode");
+    cJSON *verify_data_item = cJSON_GetObjectItem(json_result, "verify_data");
+
+    if (!verify_mode_item || !cJSON_IsNumber(verify_mode_item) ||
+        !verify_data_item || !cJSON_IsNumber(verify_data_item)) {
+        ESP_LOGE(TAG, "Invalid connection command format from camera");
+        cJSON_Delete(json_result);
+        logic_disconnect_camera();
+        return NULL;
+    }
+
+    int camera_verify_mode = verify_mode_item->valueint;
+    int camera_verify_data = verify_data_item->valueint;
+
+    if (camera_verify_mode != 2) {
+        ESP_LOGE(TAG, "Unexpected verify_mode from camera: %d", camera_verify_mode);
+        cJSON_Delete(json_result);
+        logic_disconnect_camera();
+        return NULL;
+    }
+
+    if (camera_verify_data == 0) {
+        ESP_LOGI(TAG, "Camera approved the connection, sending response...");
+
+        // 构造连接应答帧
+        connection_request_response_frame connection_response = {
+            .device_id = device_id,
+            .ret_code = 0,
+        };
+        memset(connection_response.reserved, 0, sizeof(connection_response.reserved));
+        connection_response.reserved[0] = camera_reserved;
+
+        ESP_LOGI(TAG, "构造完成，准备发送");
+
+        // 最后一步发送
+        send_command(0x00, 0x19, ACK_NO_RESPONSE, &connection_response, received_seq, 5000, CREATE_MODE_STRUCT);
+
+        ESP_LOGI(TAG, "Connection successfully established with camera.");
+    } else {
+        ESP_LOGW(TAG, "Camera rejected the connection, closing Bluetooth link...");
+        logic_disconnect_camera();
+        cJSON_Delete(json_result);
+        return NULL;
+    }
+    // 构造返回结果 JSON
+    cJSON *result = cJSON_CreateObject();
+    cJSON_AddStringToObject(result, "status", "connected");
+    cJSON_AddNumberToObject(result, "camera_reserved", camera_reserved);
+
+    cJSON_Delete(json_result);
+    return result;
 }

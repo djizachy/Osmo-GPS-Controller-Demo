@@ -165,8 +165,8 @@ int parse_fields(const uint8_t *data, size_t data_length, size_t field_count, co
  * @param output 输出的 cJSON 对象，用于存储解析的字段值。
  * @return 0 表示成功，非 0 表示失败。
  */
-int data_parser(uint8_t cmd_set, uint8_t cmd_id, const uint8_t *data, size_t data_length, cJSON *output) {
-    ESP_LOGI(TAG, "Parsing CmdSet: 0x%02X, CmdID: 0x%02X", cmd_set, cmd_id);
+int data_parser(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, const uint8_t *data, size_t data_length, cJSON *output) {
+    ESP_LOGI(TAG, "Parsing CmdSet: 0x%02X, CmdID: 0x%02X, CmdType: 0x%02X", cmd_set, cmd_id, cmd_type);
 
     // 查找对应的命令描述符
     const data_descriptor_t *descriptor = find_descriptor(cmd_set, cmd_id);
@@ -175,11 +175,25 @@ int data_parser(uint8_t cmd_set, uint8_t cmd_id, const uint8_t *data, size_t dat
         return -1;
     }
 
-    // 解析字段
-    return parse_fields(data, data_length, descriptor->response_data_field_count, descriptor->response_data_fields, output);
+    // 根据 cmd_type 判断是命令帧还是应答帧，选择对应字段解析
+    if ((cmd_type & 0x20) == 0) { // 第5位为0：命令帧
+        if (descriptor->command_data_fields == NULL || descriptor->command_data_field_count == 0) {
+            ESP_LOGE(TAG, "No command data fields defined for CmdSet: 0x%02X, CmdID: 0x%02X", cmd_set, cmd_id);
+            return -1;
+        }
+        return parse_fields(data, data_length, descriptor->command_data_field_count, descriptor->command_data_fields, output);
+    } else { // 第5位为1：应答帧
+        if (descriptor->response_data_fields == NULL || descriptor->response_data_field_count == 0) {
+            ESP_LOGE(TAG, "No response data fields defined for CmdSet: 0x%02X, CmdID: 0x%02X", cmd_set, cmd_id);
+            return -1;
+        }
+        return parse_fields(data, data_length, descriptor->response_data_field_count, descriptor->response_data_fields, output);
+    }
 }
 
-int data_parser_by_structure(uint8_t cmd_set, uint8_t cmd_id, const uint8_t *data, size_t data_length, cJSON *output) {
+int data_parser_by_structure(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, const uint8_t *data, size_t data_length, cJSON *output) {
+    fprintf(stderr, "Parsing CmdSet: 0x%02X, CmdID: 0x%02X, CmdType: 0x%02X\n", cmd_set, cmd_id, cmd_type);
+
     // 查找对应的命令描述符
     const structure_descriptor_t *descriptor = find_descriptor_by_structure(cmd_set, cmd_id);
     if (descriptor == NULL) {
@@ -187,13 +201,14 @@ int data_parser_by_structure(uint8_t cmd_set, uint8_t cmd_id, const uint8_t *dat
         return -1;
     }
 
-    // 调用对应的解析函数
+    // 检查 parser 函数是否存在
     if (descriptor->parser == NULL) {
         fprintf(stderr, "Parser function is NULL for CmdSet: 0x%02X, CmdID: 0x%02X\n", cmd_set, cmd_id);
         return -1;
     }
 
-    return descriptor->parser(data, data_length, output);
+    // 调用 parser 函数
+    return descriptor->parser(data, data_length, output, cmd_type);
 }
 
 // 工具函数
@@ -211,12 +226,13 @@ void hex_string_to_bytes(const char *hex_str, uint8_t *data, size_t length) {
  * 
  * @param cmd_set CmdSet 标识符。
  * @param cmd_id CmdID 标识符。
+ * @param cmd_type 命令类型。
  * @param key_values cJSON 对象，包含字段名称和值。
  * @param key_value_count key-value 数组的大小。
  * @param data_length 输出数据段的长度（不包括 CmdSet 和 CmdID）。
  * @return 返回构造好的数据段指针，如果内存分配失败则返回 NULL。
  */
-uint8_t* data_creator(uint8_t cmd_set, uint8_t cmd_id, const cJSON *key_values, size_t *data_length) {
+uint8_t* data_creator(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, const cJSON *key_values, size_t *data_length) {
     // 查找对应的命令描述符
     const data_descriptor_t *descriptor = find_descriptor(cmd_set, cmd_id);
     if (descriptor == NULL) {
@@ -224,10 +240,27 @@ uint8_t* data_creator(uint8_t cmd_set, uint8_t cmd_id, const cJSON *key_values, 
         return NULL;
     }
 
+    // 根据 cmd_type 判断使用 command_data_fields 或 response_data_fields
+    const data_field_t *data_fields = NULL;
+    size_t field_count = 0;
+
+    if ((cmd_type & 0x20) == 0) { // 第5位为0：命令帧
+        data_fields = descriptor->command_data_fields;
+        field_count = descriptor->command_data_field_count;
+    } else { // 第5位为1：应答帧
+        data_fields = descriptor->response_data_fields;
+        field_count = descriptor->response_data_field_count;
+    }
+
+    if (data_fields == NULL || field_count == 0) {
+        ESP_LOGW(TAG, "No data fields defined for CmdSet: 0x%02X, CmdID: 0x%02X, CmdType: 0x%02X", cmd_set, cmd_id, cmd_type);
+        return NULL;
+    }
+
     // 计算数据段长度（不包括 CmdSet 和 CmdID）
     *data_length = 0;
-    for (size_t i = 0; i < descriptor->command_data_field_count; ++i) {
-        *data_length += descriptor->command_data_fields[i].size;
+    for (size_t i = 0; i < field_count; ++i) {
+        *data_length += data_fields[i].size;
     }
 
     // 如果数据段长度为 0，直接返回一个空指针
@@ -257,9 +290,9 @@ uint8_t* data_creator(uint8_t cmd_set, uint8_t cmd_id, const cJSON *key_values, 
 
             // 查找字段的大小
             size_t field_size = 0;
-            for (size_t i = 0; i < descriptor->command_data_field_count; ++i) {
-                if (strcmp(descriptor->command_data_fields[i].field_name, key) == 0) {
-                    field_size = descriptor->command_data_fields[i].size;
+            for (size_t i = 0; i < field_count; ++i) {
+                if (strcmp(data_fields[i].field_name, key) == 0) {
+                    field_size = data_fields[i].size;
                     break;
                 }
             }
@@ -282,10 +315,11 @@ uint8_t* data_creator(uint8_t cmd_set, uint8_t cmd_id, const cJSON *key_values, 
         }
         item = item->next;
     }
+
     return data;
 }
 
-uint8_t* data_creator_by_structure(uint8_t cmd_set, uint8_t cmd_id, const void *structure, size_t *data_length) {
+uint8_t* data_creator_by_structure(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, const void *structure, size_t *data_length) {
     // 查找对应的命令描述符
     const structure_descriptor_t *descriptor = find_descriptor_by_structure(cmd_set, cmd_id);
     if (descriptor == NULL) {
@@ -293,11 +327,12 @@ uint8_t* data_creator_by_structure(uint8_t cmd_set, uint8_t cmd_id, const void *
         return NULL;
     }
 
-    // 调用对应的 creator 函数封装数据段
+    // 检查 creator 函数是否存在
     if (descriptor->creator == NULL) {
         fprintf(stderr, "Creator function is NULL for CmdSet: 0x%02X, CmdID: 0x%02X\n", cmd_set, cmd_id);
         return NULL;
     }
 
-    return descriptor->creator(structure, data_length);
+    // 调用 creator 函数
+    return descriptor->creator(structure, data_length, cmd_type);
 }

@@ -42,7 +42,7 @@ int protocol_parse_notification(const uint8_t *frame_data, size_t frame_length, 
  * 
  * @return 返回一个 `cJSON` 对象，包含解析后的数据；如果解析失败，返回 `NULL`。
  */
-cJSON* protocol_parse_data(const uint8_t *data, size_t data_length);
+cJSON* protocol_parse_data(const uint8_t *data, size_t data_length, uint8_t cmd_type);
 
 
 /**

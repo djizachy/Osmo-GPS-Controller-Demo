@@ -27,8 +27,8 @@ extern const data_descriptor_t data_descriptors[];
 extern const size_t DESCRIPTORS_COUNT;
 
 /* 结构体支持 */
-typedef uint8_t* (*data_creator_func_t)(const void *structure, size_t *data_length);
-typedef int (*data_parser_func_t)(const uint8_t *data, size_t data_length, cJSON *output);
+typedef uint8_t* (*data_creator_func_t)(const void *structure, size_t *data_length, uint8_t cmd_type);
+typedef int (*data_parser_func_t)(const uint8_t *data, size_t data_length, cJSON *output, uint8_t cmd_type);
 
 typedef struct {
     uint8_t cmd_set;                  ///< 命令集标识符 (CmdSet)
@@ -40,7 +40,10 @@ typedef struct {
 extern const structure_descriptor_t structure_descriptors[];
 extern const size_t STRUCTURE_DESCRIPTORS_COUNT;
 
-uint8_t* gps_data_creator(const void *structure, size_t *data_length);
-int gps_data_parser(const uint8_t *data, size_t data_length, cJSON *output);
+uint8_t* gps_data_creator(const void *structure, size_t *data_length, uint8_t cmd_type);
+int gps_data_parser(const uint8_t *data, size_t data_length, cJSON *output, uint8_t cmd_type);
+
+uint8_t* connection_data_creator(const void *structure, size_t *data_length, uint8_t cmd_type);
+int connection_data_parser(const uint8_t *data, size_t data_length, cJSON *output, uint8_t cmd_type);
 
 #endif // DJI_PROTOCOL_DATA_DESCRIPTORS_H

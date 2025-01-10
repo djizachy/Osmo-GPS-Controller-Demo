@@ -37,14 +37,20 @@ const structure_descriptor_t *find_descriptor_by_structure(uint8_t cmd_set, uint
 }
 
 /**
- * @brief 解析单个字段。
+ * @brief 解析单个字段的值，并将其存储在 JSON 对象中。
+ * 
+ * 该函数根据字段描述信息解析指定数据段，并将解析出的字段值添加到 JSON 对象中。如果字段包含不可打印字符，则将其转换为十六进制字符串。动态长度字段的处理方式为：如果它是最后一个字段，则解析剩余的数据；否则，动态字段不允许出现中间位置。
  * 
  * @param data 当前字段数据段的指针。
  * @param data_length 当前字段数据段的剩余长度。
- * @param field 字段描述信息。
- * @param output cJSON 对象，用于存储解析的字段值。
- * @param offset 解析过程中更新的数据偏移量。
+ * @param field 字段描述信息，包含字段的名称、大小、是否为必填等信息。
+ * @param field_index 当前字段的索引，用于确定动态长度字段的位置。
+ * @param field_count 总字段数量，用于检查动态长度字段是否在最后。
+ * @param output cJSON 对象，用于存储解析后的字段值。
+ * @param offset 解析过程中更新的数据偏移量，表示当前已处理的数据长度。
  * @return 0 表示成功，非 0 表示失败。
+ * 
+ * @note 如果解析失败，函数会在日志中输出错误信息，并返回非零值。
  */
 static int parse_single_field(const uint8_t *data, size_t data_length, const data_field_t *field, size_t field_index, size_t field_count, cJSON *output, size_t *offset) {
     size_t field_size = field->size;
@@ -160,6 +166,7 @@ int parse_fields(const uint8_t *data, size_t data_length, size_t field_count, co
  * 
  * @param cmd_set CmdSet 字段。
  * @param cmd_id CmdID 字段。
+ * @param cmd_type 命令类型。
  * @param data 数据段指针。
  * @param data_length 数据段长度。
  * @param output 输出的 cJSON 对象，用于存储解析的字段值。

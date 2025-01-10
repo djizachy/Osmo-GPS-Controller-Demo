@@ -1,14 +1,15 @@
+#include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/timers.h"
 #include "esp_log.h"
-#include "string.h"
 #include "cJSON.h"
+
 #include "data.h"
 #include "ble.h"
 #include "dji_protocol_parser.h"
 
-#define TAG "DATA_LAYER"
+#define TAG "DATA"
 
 /* 最大并行等待的命令数量 */
 #define MAX_SEQ_ENTRIES 10
@@ -17,13 +18,19 @@
 /* 最长保留时间（单位：秒），超过此时间没有被使用的条目会被清除 */
 #define MAX_ENTRY_AGE 120
 
+static bool data_layer_initialized = false;
+
+bool is_data_layer_initialized(void) {
+    return data_layer_initialized;
+}
+
 /* 条目结构 */
 typedef struct {
     bool in_use;
     bool is_seq_based;            // 新增：true 表示基于 seq，false 表示基于 cmd_set 和 cmd_id
     uint16_t seq;                 // 如果 is_seq_based 为 true，则有效
-    uint8_t cmd_set;             // 如果 is_seq_based 为 false，则有效
-    uint8_t cmd_id;              // 如果 is_seq_based 为 false，则有效
+    uint8_t cmd_set;              // 如果 is_seq_based 为 false，则有效
+    uint8_t cmd_id;               // 如果 is_seq_based 为 false，则有效
     cJSON *parse_result;          // 解析后的 cJSON 结果
     SemaphoreHandle_t sem;        // 用于同步等待
     TickType_t last_access_time;  // 最近访问的时间戳，用于 LRU 策略
@@ -275,6 +282,9 @@ void data_init(void) {
     } else {
         xTimerStart(cleanup_timer, 0);
     }
+
+    data_layer_initialized = true;
+    ESP_LOGI(TAG, "Data layer initialized successfully");
 }
 
 /* 发送数据帧（有响应） */

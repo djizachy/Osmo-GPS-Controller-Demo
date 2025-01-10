@@ -1,5 +1,5 @@
-#ifndef ENUM_H
-#define ENUM_H
+#ifndef __ENUMS_LOGIC_H__
+#define __ENUMS_LOGIC_H__
 
 typedef enum {
     CMD_NO_RESPONSE = 0x00,       // 命令帧 - 发送数据后不需要应答
@@ -28,4 +28,4 @@ typedef enum {
     CREATE_MODE_STRUCT = 1  // 通过结构体
 } create_mode_t;
 
-#endif // ENUM_H
+#endif

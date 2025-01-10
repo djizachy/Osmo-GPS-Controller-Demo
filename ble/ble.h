@@ -93,10 +93,7 @@ esp_err_t ble_read(uint16_t conn_id, uint16_t handle);
  * @param length    数据长度
  * @return esp_err_t
  */
-esp_err_t ble_write_without_response(uint16_t conn_id,
-                                     uint16_t handle,
-                                     const uint8_t *data,
-                                     size_t length);
+esp_err_t ble_write_without_response(uint16_t conn_id, uint16_t handle, const uint8_t *data, size_t length);
 
 /**
  * @brief 写特征（Write With Response）
@@ -107,10 +104,7 @@ esp_err_t ble_write_without_response(uint16_t conn_id,
  * @param length    数据长度
  * @return esp_err_t
  */
-esp_err_t ble_write_with_response(uint16_t conn_id,
-                                  uint16_t handle,
-                                  const uint8_t *data,
-                                  size_t length);
+esp_err_t ble_write_with_response(uint16_t conn_id, uint16_t handle, const uint8_t *data, size_t length);
 
 /**
  * @brief 注册（开启）Notify
@@ -140,4 +134,4 @@ esp_err_t ble_unregister_notify(uint16_t conn_id, uint16_t char_handle);
  */
 void ble_set_notify_callback(ble_notify_callback_t cb);
 
-#endif // __BLE_H__
+#endif

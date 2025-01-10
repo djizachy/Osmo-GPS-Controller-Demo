@@ -61,8 +61,8 @@ int protocol_parse_notification(const uint8_t *frame_data, size_t frame_length, 
 
     // 解析 Ver/Length
     uint16_t ver_length = (frame_data[2] << 8) | frame_data[1];
-    uint16_t version = ver_length >> 10; // 高 6 位为版本号
-    uint16_t expected_length = ver_length & 0x03FF; // 低 10 位为帧长度
+    uint16_t version = ver_length >> 10;             // 高 6 位为版本号
+    uint16_t expected_length = ver_length & 0x03FF;  // 低 10 位为帧长度
 
     if (expected_length != frame_length) {
         ESP_LOGE(TAG, "Frame length mismatch: expected %u, got %zu", expected_length, frame_length);
@@ -71,7 +71,7 @@ int protocol_parse_notification(const uint8_t *frame_data, size_t frame_length, 
 
     // 验证 CRC-16
     uint16_t crc16_received = (frame_data[11] << 8) | frame_data[10];
-    uint16_t crc16_calculated = calculate_crc16(frame_data, 10); // 从 SOF 到 SEQ
+    uint16_t crc16_calculated = calculate_crc16(frame_data, 10);  // 从 SOF 到 SEQ
     if (crc16_received != crc16_calculated) {
         ESP_LOGE(TAG, "CRC-16 mismatch: received 0x%04X, calculated 0x%04X", crc16_received, crc16_calculated);
         return -4;
@@ -80,18 +80,11 @@ int protocol_parse_notification(const uint8_t *frame_data, size_t frame_length, 
     // 验证 CRC-32
     uint32_t crc32_received = (frame_data[frame_length - 1] << 24) | (frame_data[frame_length - 2] << 16) |
                               (frame_data[frame_length - 3] << 8) | frame_data[frame_length - 4];
-    uint32_t crc32_calculated = calculate_crc32(frame_data, frame_length - 4); // 从 SOF 到 DATA
+    uint32_t crc32_calculated = calculate_crc32(frame_data, frame_length - 4);  // 从 SOF 到 DATA
     if (crc32_received != crc32_calculated) {
         ESP_LOGE(TAG, "CRC-32 mismatch: received 0x%08X, calculated 0x%08X", (unsigned int)crc32_received, (unsigned int)crc32_calculated);
         return -5;
     }
-
-    // 检查序列号
-    uint16_t seq_received = (frame_data[8] << 8) | frame_data[9];
-    // if (seq_received != exp_seq) {
-    //     ESP_LOGE(TAG, "Sequence number mismatch: expected 0x%04X, got 0x%04X", seq, seq_received);
-    //     return -6;
-    // }
 
     // 填充解析结果到结构体
     frame->sof = frame_data[0];
@@ -100,7 +93,7 @@ int protocol_parse_notification(const uint8_t *frame_data, size_t frame_length, 
     frame->cmd_type = frame_data[3];
     frame->enc = frame_data[4];
     memcpy(frame->res, &frame_data[5], 3);
-    frame->seq = seq_received;
+    frame->seq = (frame_data[8] << 8) | frame_data[9];
     frame->crc16 = crc16_received;
 
     // 处理数据段 (DATA)
@@ -122,10 +115,9 @@ int protocol_parse_notification(const uint8_t *frame_data, size_t frame_length, 
 cJSON* protocol_parse_data(const uint8_t *data, size_t data_length, uint8_t cmd_type) {
     if (data == NULL || data_length < 2) {
         ESP_LOGE(TAG, "Invalid data segment: data is NULL or too short");
-        return NULL;  // 返回 NULL，表示解析失败
+        return NULL;
     }
 
-    // 提取 CmdSet 和 CmdID
     uint8_t cmd_set = data[0];
     uint8_t cmd_id = data[1];
 
@@ -140,7 +132,7 @@ cJSON* protocol_parse_data(const uint8_t *data, size_t data_length, uint8_t cmd_
         structure_descriptor = find_descriptor_by_structure(cmd_set, cmd_id);
         if (structure_descriptor == NULL) {
             ESP_LOGE(TAG, "No structure descriptor found for CmdSet 0x%02X and CmdID 0x%02X", cmd_set, cmd_id);
-            return NULL;  // 两种描述符都找不到，返回 NULL
+            return NULL;
         }
     }
 
@@ -154,7 +146,7 @@ cJSON* protocol_parse_data(const uint8_t *data, size_t data_length, uint8_t cmd_
     cJSON *response_json = cJSON_CreateObject();
 
     // 调用解析函数
-    int result = -1;  // 用于存储解析结果
+    int result = -1;
     if (descriptor != NULL) {
         // 如果找到 data_descriptor，则使用通用数据解析函数
         result = data_parser(cmd_set, cmd_id, cmd_type, response_data, response_length, response_json);
@@ -170,11 +162,10 @@ cJSON* protocol_parse_data(const uint8_t *data, size_t data_length, uint8_t cmd_
     } else {
         // 解析失败
         ESP_LOGE(TAG, "Failed to parse data for CmdSet 0x%02X and CmdID 0x%02X", cmd_set, cmd_id);
-        cJSON_Delete(response_json);  // 删除 JSON 对象
-        return NULL;  // 返回 NULL
+        cJSON_Delete(response_json);
+        return NULL;
     }
 
-    // 返回解析后的 JSON 对象
     return response_json;
 }
 

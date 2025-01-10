@@ -27,6 +27,7 @@ const structure_descriptor_t *find_descriptor_by_structure(uint8_t cmd_set, uint
  * 
  * @param cmd_set CmdSet 字段值（命令集标识符）。
  * @param cmd_id CmdID 字段值（命令标识符）。
+ * @param cmd_type 命令类型。
  * @param data 数据段指针，包含要解析的原始数据。
  * @param data_length 数据段的长度（字节数）。
  * @param output 输出的 cJSON 对象，用于存储解析后的字段名及其对应值。
@@ -55,4 +56,4 @@ uint8_t* data_creator(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, const c
 
 uint8_t* data_creator_by_structure(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, const void *structure, size_t *data_length);
 
-#endif // DJI_PROTOCOL_DATA_PROCESSOR_H
+#endif

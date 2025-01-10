@@ -46,4 +46,4 @@ int gps_data_parser(const uint8_t *data, size_t data_length, cJSON *output, uint
 uint8_t* connection_data_creator(const void *structure, size_t *data_length, uint8_t cmd_type);
 int connection_data_parser(const uint8_t *data, size_t data_length, cJSON *output, uint8_t cmd_type);
 
-#endif // DJI_PROTOCOL_DATA_DESCRIPTORS_H
+#endif

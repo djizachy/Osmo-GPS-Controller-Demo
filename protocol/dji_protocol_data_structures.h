@@ -60,4 +60,4 @@ typedef struct __attribute__((packed)) {
     uint8_t reserved[4];        // 预留字段
 } connection_request_response_frame;
 
-#endif // DJI_PROTOCOL_DATA_STRUCTURES_H
+#endif

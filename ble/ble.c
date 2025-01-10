@@ -9,7 +9,7 @@
 #include "esp_bt_main.h"
 #include "esp_gatt_common_api.h"
 
-#define TAG "BLE_DEVICE_LAYER"
+#define TAG "BLE"
 
 /* 目标设备名称（从 ble_init 传入） */
 static char s_remote_device_name[ESP_BLE_ADV_NAME_LEN_MAX] = {0};

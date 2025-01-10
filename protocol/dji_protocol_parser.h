@@ -39,7 +39,7 @@ int protocol_parse_notification(const uint8_t *frame_data, size_t frame_length, 
  * 
  * @param data 数据段指针，包含要解析的完整数据。
  * @param data_length 数据段的长度，至少为 2（包含 CmdSet 和 CmdID 字段）。
- * 
+ * @param cmd_type 命令类型
  * @return 返回一个 `cJSON` 对象，包含解析后的数据；如果解析失败，返回 `NULL`。
  */
 cJSON* protocol_parse_data(const uint8_t *data, size_t data_length, uint8_t cmd_type);
@@ -51,8 +51,7 @@ cJSON* protocol_parse_data(const uint8_t *data, size_t data_length, uint8_t cmd_
  * @param cmd_set 命令集标识符。
  * @param cmd_id 命令标识符。
  * @param cmd_type 命令类型标识符（如请求、应答）。
- * @param key_values 输入的 key-value 数组，包含待封装的数据。
- * @param key_value_count key-value 数组的大小。
+ * @param key_values_or_structure 输入的 key-value 数组，包含待封装的数据（可能是 cJSON 也可能是结构体）。
  * @param seq 帧的序列号。
  * @param frame_length 生成的帧总长度（包括协议头、有效载荷和校验码）。
  * @param create_mode 创建方式，0为无结构体法，1为结构体法。
@@ -60,4 +59,4 @@ cJSON* protocol_parse_data(const uint8_t *data, size_t data_length, uint8_t cmd_
  */
 uint8_t* protocol_create_frame(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, const void *key_values_or_structure, uint16_t seq, size_t *frame_length, uint8_t create_mode);
 
-#endif // DJI_PROTOCOL_PARSER_H
+#endif

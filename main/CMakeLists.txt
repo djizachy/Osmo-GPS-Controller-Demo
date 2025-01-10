@@ -9,6 +9,8 @@ idf_component_register(SRCS "app_main.c"
                             "../protocol/dji_protocol_data_structures.c"
                             "../ble/ble.c"
                             "../data/data.c"
-                            "../logic/logic.c"
-                    PRIV_REQUIRES bt nvs_flash
+                            "../logic/connect_logic.c"
+                            "../logic/command_logic.c"
+                            "../logic/gps_logic.c"
+                    PRIV_REQUIRES bt nvs_flash esp_driver_uart esp_driver_gpio
                     INCLUDE_DIRS "." "../utils/crc" "../utils/json" "../protocol" "../ble" "../data" "../logic")

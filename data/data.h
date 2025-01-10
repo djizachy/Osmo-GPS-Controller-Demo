@@ -9,6 +9,8 @@
 
 void data_init(void);
 
+bool is_data_layer_initialized(void);
+
 esp_err_t data_write_with_response(uint16_t seq, const uint8_t *data, size_t length);
 
 esp_err_t data_write_without_response(uint16_t seq, const uint8_t *data, size_t length);
@@ -19,4 +21,4 @@ esp_err_t data_wait_for_result_by_cmd(uint8_t cmd_set, uint8_t cmd_id, int timeo
 
 void receive_camera_notify_handler(const uint8_t *data, size_t length);
 
-#endif // __DATA_H__
+#endif

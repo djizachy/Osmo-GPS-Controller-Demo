@@ -149,8 +149,7 @@ static void rx_task_GPS(void *arg)
     free(data);
 }
 
-void initSendGpsDataToCameraTask(void)
-{
+void initSendGpsDataToCameraTask(void) {
     initUartGps();
     xTaskCreate(rx_task_GPS, "uart_rx_task_GPS", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);
     ESP_LOGI("MAIN", "uart_rx_task_GPS are running\n");

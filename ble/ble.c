@@ -20,6 +20,9 @@ static bool s_connecting = false;
 /* 全局保存的 Notify 回调 */
 static ble_notify_callback_t s_notify_cb = NULL;
 
+/* 设置逻辑层断开连接状态回调 */
+static connect_logic_state_callback_t s_state_cb = NULL;
+
 /* 仅存一个 profile */
 ble_profile_t s_ble_profile = {
     .conn_id = 0,
@@ -38,18 +41,10 @@ ble_profile_t s_ble_profile = {
     },
 };
 
-/* -----
- * 这里定义想要过滤的 Service/Characteristic UUID，供搜索使用
- * ----- */
+/* 这里定义想要过滤的 Service/Characteristic UUID，供搜索使用 */
 #define REMOTE_TARGET_SERVICE_UUID   0xFFF0
 #define REMOTE_NOTIFY_CHAR_UUID      0xFFF4
 #define REMOTE_WRITE_CHAR_UUID       0xFFF5
-
-/* ESP-IDF 的 UUID 结构体用法 */
-// static esp_bt_uuid_t s_filter_service_uuid = {
-//     .len = ESP_UUID_LEN_16,
-//     .uuid.uuid16 = REMOTE_TARGET_SERVICE_UUID,
-// };
 
 static esp_bt_uuid_t s_filter_notify_char_uuid = {
     .len = ESP_UUID_LEN_16,
@@ -76,9 +71,7 @@ static esp_ble_scan_params_t s_ble_scan_params = {
     .scan_duplicate     = BLE_SCAN_DUPLICATE_DISABLE
 };
 
-/* ----------------------------------------------------------------
- *   回调函数声明
- * ---------------------------------------------------------------- */
+/* 回调函数声明 */
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
 static void gattc_event_handler(esp_gattc_cb_event_t event,
                                 esp_gatt_if_t gattc_if,
@@ -262,6 +255,10 @@ void ble_set_notify_callback(ble_notify_callback_t cb) {
     s_notify_cb = cb;
 }
 
+void ble_set_state_callback(connect_logic_state_callback_t cb) {
+    s_state_cb = cb;
+}
+
 /* ----------------------------------------------------------------
  *   GAP & GATTC 回调函数实现（精简版）
  * ---------------------------------------------------------------- */
@@ -281,7 +278,6 @@ static void try_to_connect(esp_ble_gap_cb_param_t *scan_result) {
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param) {
     switch (event) {
     case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT:
-        /* 开始扫描 */
         esp_ble_gap_start_scanning(30); // 扫描 30s，可自行调整
         break;
 
@@ -321,11 +317,6 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
         break;
     }
 }
-
-// 暂时未用到
-// static void gattc_search_service(esp_gatt_if_t gattc_if, uint16_t conn_id) {
-//     esp_ble_gattc_search_service(gattc_if, conn_id, &s_filter_service_uuid);
-// }
 
 static void gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param) {
     switch (event) {
@@ -467,6 +458,11 @@ static void gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_
         s_ble_profile.handle_discovery.notify_char_handle_found = false;
         s_connecting = false;
         ESP_LOGI(TAG, "Disconnected, reason=0x%x", param->disconnect.reason);
+
+        if (s_state_cb) {
+            s_state_cb();
+        }
+        
         break;
     }
     default:

@@ -12,7 +12,7 @@
 #include "dji_protocol_parser.h"
 #include "dji_protocol_data_structures.h"
 
-#define TAG "LOGIC-COMMAND"
+#define TAG "LOGIC_COMMAND"
 
 uint16_t s_current_seq = 0;
 
@@ -34,7 +34,7 @@ uint16_t generate_seq(void) {
  */
 cJSON* send_command(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, const void *input_raw_data, uint16_t seq, int timeout_ms, uint8_t create_mode) { 
     
-    if(connect_logic_get_state() != CONNECT_STATE_BLE_CONNECTED){
+    if(connect_logic_get_state() == CONNECT_STATE_DISCONNECTED){
         ESP_LOGE(TAG, "BLE not connected");
         return NULL;
     }
@@ -255,7 +255,8 @@ cJSON* command_logic_push_gps_data(int32_t year_month_day, int32_t hour_minute_s
                             float speed_to_wnward, uint32_t vertical_accuracy,
                             uint32_t horizontal_accuracy, uint32_t speed_accuracy,
                             uint32_t satellite_number) {
-    ESP_LOGI(TAG, "%s: Pushing GPS data", __FUNCTION__);
+    // 踩坑：这里的 LOG 如果字符串过长，会造成定时器任务堆栈溢出
+    ESP_LOGI(TAG, "Pushing GPS data");
     if (connect_logic_get_state() != CONNECT_STATE_PROTOCOL_CONNECTED) {
         ESP_LOGE(TAG, "Protocol connection to the camera failed. Current connection state: %d", connect_logic_get_state());
         return NULL;

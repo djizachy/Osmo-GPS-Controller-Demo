@@ -50,6 +50,8 @@ extern ble_profile_t s_ble_profile;
  */
 typedef void (*ble_notify_callback_t)(const uint8_t *data, size_t length);
 
+typedef void (*connect_logic_state_callback_t)(void);
+
 /**
  * @brief BLE 客户端初始化
  *
@@ -133,5 +135,12 @@ esp_err_t ble_unregister_notify(uint16_t conn_id, uint16_t char_handle);
  * @param cb 回调函数指针
  */
 void ble_set_notify_callback(ble_notify_callback_t cb);
+
+/**
+ * @brief 设置全局的逻辑层断连状态回调
+ *
+ * @param cb 回调函数指针
+ */
+void ble_set_state_callback(connect_logic_state_callback_t cb);
 
 #endif

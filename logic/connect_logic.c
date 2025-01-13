@@ -11,12 +11,33 @@
 #include "command_logic.h"
 #include "dji_protocol_data_structures.h"
 
-#define TAG "LOGIC-CONNECT"
+#define TAG "LOGIC_CONNECT"
 
 static connect_state_t connect_state = CONNECT_STATE_DISCONNECTED;
 
 connect_state_t connect_logic_get_state(void) {
     return connect_state;
+}
+
+void receive_camera_disconnect_handler() {
+    switch (connect_state) {
+        case CONNECT_STATE_DISCONNECTED:
+            ESP_LOGI(TAG, "Already in DISCONNECTED state.");
+            break;
+        case CONNECT_STATE_BLE_CONNECTED:
+            ESP_LOGI(TAG, "Transitioning from BLE_CONNECTED to DISCONNECTED.");
+            break;
+        case CONNECT_STATE_PROTOCOL_CONNECTED:
+            ESP_LOGI(TAG, "Transitioning from PROTOCOL_CONNECTED to DISCONNECTED.");
+            break;
+        default:
+            ESP_LOGE(TAG, "Unknown state transition from %d to DISCONNECTED.", connect_state);
+            break;
+    }
+
+    connect_state = CONNECT_STATE_DISCONNECTED;
+
+    ESP_LOGI(TAG, "Current state: DISCONNECTED.");
 }
 
 int connect_logic_ble_connect(const char *camera_name) {
@@ -31,6 +52,7 @@ int connect_logic_ble_connect(const char *camera_name) {
 
     /* 2. 设置一个全局 Notify 回调，用于接收远端数据并进行协议解析 */
     ble_set_notify_callback(receive_camera_notify_handler); // 使用数据层的通知处理函数
+    ble_set_state_callback(receive_camera_disconnect_handler);
 
     /* 3. 开始扫描并尝试连接 */
     ret = ble_start_scanning_and_connect();
@@ -95,9 +117,6 @@ int connect_logic_ble_disconnect(void) {
         ESP_LOGE(TAG, "Failed to disconnect camera, BLE error: %s", esp_err_to_name(ret));
         return -1;
     }
-
-    // 更新状态为断开连接
-    connect_state = CONNECT_STATE_DISCONNECTED;
 
     ESP_LOGI(TAG, "Camera disconnected successfully");
     return 0;

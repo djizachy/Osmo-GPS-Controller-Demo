@@ -517,6 +517,15 @@ esp_err_t data_wait_for_result_by_cmd(uint8_t cmd_set, uint8_t cmd_id, int timeo
     }
 }
 
+/**
+ * @brief 注册状态更新回调
+ * @param callback 回调函数指针
+ */
+static camera_status_update_cb_t status_update_callback = NULL;
+void data_register_status_update_callback(camera_status_update_cb_t callback) {
+    status_update_callback = callback;
+}
+
 /* Notify 回调函数，合并到数据层 */
 void receive_camera_notify_handler(const uint8_t *raw_data, size_t raw_data_length) {
     if (!raw_data || raw_data_length < 2) {
@@ -590,6 +599,11 @@ void receive_camera_notify_handler(const uint8_t *raw_data, size_t raw_data_leng
                 }
             }
             xSemaphoreGive(s_map_mutex);
+        }
+
+        // 特殊回调处理
+        if(actual_cmd_set == 0x1D && actual_cmd_id == 0x02 && status_update_callback) {
+            status_update_callback(parse_result);
         }
     } else {
         // ESP_LOGW(TAG, "Received frame does not start with 0xAA, ignoring...");

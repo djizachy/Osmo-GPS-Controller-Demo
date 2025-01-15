@@ -60,4 +60,34 @@ typedef struct __attribute__((packed)) {
     uint8_t reserved[4];        // 预留字段
 } connection_request_response_frame;
 
+typedef struct __attribute__((packed)) {
+    uint8_t push_mode;          // 推送模式：0-关闭，1-单次，2-周期，3-周期+状态变化推送
+    uint8_t push_freq;          // 推送频率，单位：0.1Hz
+    uint8_t reserved[4];        // 预留字段
+} camera_status_subscription_command_frame;
+
+typedef struct __attribute__((packed)) {
+    uint8_t camera_mode;           // 相机模式：0x00 - 慢动作模式，0x01 - 普通模式，...
+    uint8_t camera_status;         // 相机状态：0x00 - 屏幕关闭，0x01 - 直播，...
+    uint8_t video_resolution;      // 视频分辨率：例如 0x10 - 1920x1080，...
+    uint8_t fps_idx;               // 帧率：例如 0x01 - 24fps，...
+    uint8_t eis_mode;              // 电子防抖模式：0 - 关闭，1 - RS，...
+    uint16_t record_time;          // 当前录像时间：单位秒
+    uint8_t fov_type;              // FOV类型，保留字段
+    uint8_t photo_ratio;           // 照片比例：0 - 16:9，1 - 4:3
+    uint16_t real_time_countdown;  // 实时倒计时：单位秒
+    uint16_t timelapse_interval;   // 延时摄影时间间隔：单位0.1s
+    uint16_t timelapse_duration;   // 延时摄影时长：单位秒
+    uint32_t remain_capacity;      // SD卡剩余容量：单位MB
+    uint32_t remain_photo_num;     // 剩余拍照张数
+    uint32_t remain_time;          // 剩余录像时间：单位秒
+    uint8_t user_mode;             // 用户模式：0 - 通用模式，1 - 自定义模式1，...
+    uint8_t power_mode;            // 电源模式：0 - 正常工作模式，3 - 休眠模式
+    uint8_t camera_mode_next_flag; // 预切换标志
+    uint8_t temp_over;             // 温度状态：0 - 正常，1 - 温度警告，...
+    uint32_t photo_countdown_ms;   // 拍照倒计时参数：单位毫秒
+    uint16_t loop_record_sends;    // 循环录像时长：单位秒
+    uint8_t camera_bat_percentage; // 相机电池电量：0~100%
+} camera_status_push_command_frame;
+
 #endif

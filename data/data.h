@@ -19,6 +19,8 @@ esp_err_t data_wait_for_result_by_seq(uint16_t seq, int timeout_ms, cJSON **out_
 
 esp_err_t data_wait_for_result_by_cmd(uint8_t cmd_set, uint8_t cmd_id, int timeout_ms, cJSON **out_json, uint16_t *out_seq);
 
+typedef void (*camera_status_update_cb_t)(cJSON *parsed_data);
+void data_register_status_update_callback(camera_status_update_cb_t callback);
 void receive_camera_notify_handler(const uint8_t *data, size_t length);
 
 #endif

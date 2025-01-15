@@ -129,7 +129,7 @@ static void rx_task_GPS(void *arg)
         
         if (rxBytes > 0) {
             data[rxBytes] = 0;
-            // ESP_LOGI(RX_TASK_TAG, "Read %d bytes: '%s'", rxBytes, data);
+            ESP_LOGI(RX_TASK_TAG, "Read %d bytes: '%s'", rxBytes, data);
 
             // 将读取到的数据存储到全局缓冲区 buff_t 中
             memcpy(buff_t, data, rxBytes);
@@ -138,6 +138,7 @@ static void rx_task_GPS(void *arg)
             GNRMC gps = GNRMC_L76X_Gat_GNRMC();
 
             // TODO：GPS 数据发送给相机
+            ESP_LOGI("GPS Data", "Parsed GPS Data: Time=%02d:%02d:%02d, Lat=%f, Lon=%f, Status=%d", gps.Time_H, gps.Time_M, gps.Time_S, gps.Lat, gps.Lon, gps.Status);
             if(connect_logic_get_state() == CONNECT_STATE_PROTOCOL_CONNECTED && gps.Status == 1){
                 ESP_LOGI("GPS Data", "Parsed GPS Data: Time=%02d:%02d:%02d, Lat=%f, Lon=%f, Status=%d", gps.Time_H, gps.Time_M, gps.Time_S, gps.Lat, gps.Lon, gps.Status);
             }

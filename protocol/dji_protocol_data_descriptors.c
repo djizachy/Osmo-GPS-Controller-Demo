@@ -5,14 +5,7 @@
 
 #define TAG "DJI_PROTOCOL_DATA_DESCRIPTORS"
 
-/**
- * @brief 数据描述符数组，包含命令集、命令标识符、命令帧与应答帧的字段布局。
- * 
- * 该数组用于存储不同命令集（CmdSet）和命令标识符（CmdID）对应的命令帧与应答帧的字段描述信息。
- * 每个元素描述了命令帧与应答帧的字段布局，包括字段的指针和数量。
- * 
- * @note 本例中定义了一个命令集和命令 ID 的数据描述符，具体应用可以根据需求扩展。
- */
+/* 方法一：只定义帧结构*/
 const data_descriptor_t data_descriptors[] = {
     { 
         0x1D,                                   // CmdSet: 命令集标识符
@@ -27,14 +20,16 @@ const data_descriptor_t data_descriptors[] = {
 };
 const size_t DESCRIPTORS_COUNT = sizeof(data_descriptors) / sizeof(data_descriptors[0]);
 
-/* 结构体支持 */
+/* 方法二：结构体支持，但要为每个结构体定义 creator 和 parser */
 const structure_descriptor_t structure_descriptors[] = {
     {0x00, 0x17, (data_creator_func_t)gps_data_creator, (data_parser_func_t)gps_data_parser},
-    {0x00, 0x19, (data_creator_func_t)connection_data_creator, (data_parser_func_t)connection_data_parser}
+    {0x00, 0x19, (data_creator_func_t)connection_data_creator, (data_parser_func_t)connection_data_parser},
+    {0x1D, 0x05, (data_creator_func_t)camera_status_subscription_creator, NULL},
+    {0x1D, 0x02, NULL, (data_parser_func_t)camera_status_push_data_parser}
 };
 const size_t STRUCTURE_DESCRIPTORS_COUNT = sizeof(structure_descriptors) / sizeof(structure_descriptors[0]);
 
-// 下面定义结构体支持的 creator 和 parser
+/* 结构体支持的 creator 和 parser */
 uint8_t* gps_data_creator(const void *structure, size_t *data_length, uint8_t cmd_type) {
     if (structure == NULL || data_length == NULL) {
         ESP_LOGE(TAG, "Invalid input: structure or data_length is NULL");
@@ -61,12 +56,10 @@ uint8_t* gps_data_creator(const void *structure, size_t *data_length, uint8_t cm
             return NULL;
         }
 
-        // 日志：内存分配成功
         ESP_LOGI(TAG, "Memory allocation succeeded for command frame, copying data...");
 
         // 填充数据段
         memcpy(data, gps_command_frame, *data_length);
-
     } else {
         // 应答帧
         const gps_data_push_response_frame *gps_response_frame = (const gps_data_push_response_frame *)structure;
@@ -84,13 +77,11 @@ uint8_t* gps_data_creator(const void *structure, size_t *data_length, uint8_t cm
             return NULL;
         }
 
-        // 日志：内存分配成功
         ESP_LOGI(TAG, "Memory allocation succeeded for response frame, copying data...");
 
         // 填充数据段
         memcpy(data, gps_response_frame, *data_length);
     }
-
     // 返回数据段指针
     return data;
 }
@@ -98,7 +89,7 @@ uint8_t* gps_data_creator(const void *structure, size_t *data_length, uint8_t cm
 int gps_data_parser(const uint8_t *data, size_t data_length, cJSON *output, uint8_t cmd_type) {
     if (data == NULL || output == NULL) {
         ESP_LOGE(TAG, "gps_data_parser: NULL input detected");
-        return -1;  // 返回错误码
+        return -1;
     }
 
     // 日志：记录传入的数据长度
@@ -107,14 +98,14 @@ int gps_data_parser(const uint8_t *data, size_t data_length, cJSON *output, uint
     // 判断是否为命令帧 (cmd_type & 0x20 == 0)
     if ((cmd_type & 0x20) == 0) {
         ESP_LOGW(TAG, "gps_data_parser: Parsing command frame is not supported.");
-        return -1;  // 返回错误码，表示暂不支持命令帧
+        return -1;
     }
 
     // 检查数据长度是否足够
     if (data_length < sizeof(gps_data_push_response_frame)) {
         ESP_LOGE(TAG, "gps_data_parser: Data length too short. Expected: %zu, Got: %zu",
                  sizeof(gps_data_push_response_frame), data_length);
-        return -1;  // 返回错误码
+        return -1;
     }
 
     // 转换为 GPS 响应帧结构体
@@ -123,7 +114,7 @@ int gps_data_parser(const uint8_t *data, size_t data_length, cJSON *output, uint
     // 将解析结果填充到 cJSON 对象中
     cJSON_AddNumberToObject(output, "ret_code", response->ret_code);
 
-    return 0;  // 返回成功
+    return 0;
 }
 
 uint8_t* connection_data_creator(const void *structure, size_t *data_length, uint8_t cmd_type) {
@@ -154,7 +145,6 @@ uint8_t* connection_data_creator(const void *structure, size_t *data_length, uin
 
         // 填充数据段
         memcpy(data, command_frame, *data_length);
-
     } else {
         // 应答帧
         const connection_request_response_frame *response_frame = (const connection_request_response_frame *)structure;
@@ -162,7 +152,6 @@ uint8_t* connection_data_creator(const void *structure, size_t *data_length, uin
         // 计算数据段长度
         *data_length = sizeof(connection_request_response_frame);
 
-        // 日志：记录数据段长度
         ESP_LOGI(TAG, "Data length calculated for connection_request_response_frame: %zu", *data_length);
 
         // 分配内存
@@ -182,7 +171,7 @@ uint8_t* connection_data_creator(const void *structure, size_t *data_length, uin
 int connection_data_parser(const uint8_t *data, size_t data_length, cJSON *output, uint8_t cmd_type) {
     if (data == NULL || output == NULL) {
         ESP_LOGE(TAG, "connection_request_data_parser: NULL input detected");
-        return -1;  // 返回错误码
+        return -1;
     }
 
     // 日志：记录传入的数据长度
@@ -197,7 +186,7 @@ int connection_data_parser(const uint8_t *data, size_t data_length, cJSON *outpu
         if (data_length < sizeof(connection_request_command_frame)) {
             ESP_LOGE(TAG, "connection_request_data_parser: Data length too short for command frame. Expected: %zu, Got: %zu",
                      sizeof(connection_request_command_frame), data_length);
-            return -1;  // 返回错误码
+            return -1;
         }
 
         // 转换为连接请求命令帧结构体
@@ -226,7 +215,7 @@ int connection_data_parser(const uint8_t *data, size_t data_length, cJSON *outpu
         }
         cJSON_AddItemToObject(output, "reserved", reserved_array);
 
-        return 0;  // 返回成功
+        return 0;
     } else {
         // 解析响应帧
         ESP_LOGI(TAG, "Parsing response frame...");
@@ -235,7 +224,7 @@ int connection_data_parser(const uint8_t *data, size_t data_length, cJSON *outpu
         if (data_length < sizeof(connection_request_response_frame)) {
             ESP_LOGE(TAG, "connection_request_data_parser: Data length too short for response frame. Expected: %zu, Got: %zu",
                      sizeof(connection_request_response_frame), data_length);
-            return -1;  // 返回错误码
+            return -1;
         }
 
         // 转换为连接请求响应帧结构体
@@ -252,6 +241,84 @@ int connection_data_parser(const uint8_t *data, size_t data_length, cJSON *outpu
         }
         cJSON_AddItemToObject(output, "reserved", reserved_array);
 
-        return 0;  // 返回成功
+        return 0;
+    }
+}
+
+uint8_t* camera_status_subscription_creator(const void *structure, size_t *data_length, uint8_t cmd_type) {
+    if (structure == NULL || data_length == NULL) {
+        ESP_LOGE(TAG, "Invalid input: structure or data_length is NULL");
+        return NULL;
+    }
+
+    uint8_t *data = NULL;
+
+    if ((cmd_type & 0x20) == 0) {
+        const camera_status_subscription_command_frame *camera_command_frame = 
+            (const camera_status_subscription_command_frame *)structure;
+
+        *data_length = sizeof(camera_status_subscription_command_frame);
+        
+        ESP_LOGI(TAG, "Data length calculated for camera_status_subscription_command_frame: %zu", *data_length);
+
+        data = (uint8_t *)malloc(*data_length);
+        if (data == NULL) {
+            ESP_LOGE(TAG, "Memory allocation failed in camera_status_subscription_creator");
+            return NULL;
+        }
+
+        ESP_LOGI(TAG, "Memory allocation succeeded for command frame, copying data...");
+        
+        memcpy(data, camera_command_frame, *data_length);
+    } else {
+        ESP_LOGE(TAG, "Response frames are not supported in camera_status_subscription_creator");
+        return NULL;
+    }
+    return data;
+}
+
+int camera_status_push_data_parser(const uint8_t *data, size_t data_length, cJSON *output, uint8_t cmd_type) {
+    if (data == NULL || output == NULL) {
+        ESP_LOGE(TAG, "camera_status_push_data_parser: NULL input detected");
+        return -1;
+    }
+
+    ESP_LOGI(TAG, "Parsing Camera Status Push data, received data length: %zu", data_length);
+
+    if ((cmd_type & 0x20) == 0) {
+        if (data_length < sizeof(camera_status_push_command_frame)) {
+            ESP_LOGE(TAG, "camera_status_push_data_parser: Data length too short for command frame. Expected: %zu, Got: %zu",
+                     sizeof(camera_status_push_command_frame), data_length);
+            return -1;
+        }
+
+        const camera_status_push_command_frame *frame = (const camera_status_push_command_frame *)data;
+
+        cJSON_AddNumberToObject(output, "camera_mode", frame->camera_mode);
+        cJSON_AddNumberToObject(output, "camera_status", frame->camera_status);
+        cJSON_AddNumberToObject(output, "video_resolution", frame->video_resolution);
+        cJSON_AddNumberToObject(output, "fps_idx", frame->fps_idx);
+        cJSON_AddNumberToObject(output, "eis_mode", frame->eis_mode);
+        cJSON_AddNumberToObject(output, "record_time", frame->record_time);
+        cJSON_AddNumberToObject(output, "fov_type", frame->fov_type);
+        cJSON_AddNumberToObject(output, "photo_ratio", frame->photo_ratio);
+        cJSON_AddNumberToObject(output, "real_time_countdown", frame->real_time_countdown);
+        cJSON_AddNumberToObject(output, "timelapse_interval", frame->timelapse_interval);
+        cJSON_AddNumberToObject(output, "timelapse_duration", frame->timelapse_duration);
+        cJSON_AddNumberToObject(output, "remain_capacity", frame->remain_capacity);
+        cJSON_AddNumberToObject(output, "remain_photo_num", frame->remain_photo_num);
+        cJSON_AddNumberToObject(output, "remain_time", frame->remain_time);
+        cJSON_AddNumberToObject(output, "user_mode", frame->user_mode);
+        cJSON_AddNumberToObject(output, "power_mode", frame->power_mode);
+        cJSON_AddNumberToObject(output, "camera_mode_next_flag", frame->camera_mode_next_flag);
+        cJSON_AddNumberToObject(output, "temp_over", frame->temp_over);
+        cJSON_AddNumberToObject(output, "photo_countdown_ms", frame->photo_countdown_ms);
+        cJSON_AddNumberToObject(output, "loop_record_sends", frame->loop_record_sends);
+        cJSON_AddNumberToObject(output, "camera_bat_percentage", frame->camera_bat_percentage);
+
+        return 0;
+    } else {
+        ESP_LOGE(TAG, "camera_status_push_data_parser: Response frames are not supported");
+        return -1;
     }
 }

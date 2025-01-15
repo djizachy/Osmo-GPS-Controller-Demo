@@ -11,6 +11,7 @@
 #include "connect_logic.h"
 #include "command_logic.h"
 #include "gps_logic.h"
+#include "status_logic.h"
 
 static const char *TAG = "MAIN";
 
@@ -78,57 +79,59 @@ void app_main(void) {
         return;
     }
 
-    initSendGpsDataToCameraTask();
+    subscript_camera_status(3, 1);
 
-    /* 3. 获取设备版本信息并打印 */
-    cJSON *json_result = command_logic_get_version();
-    print_json_result(json_result);
+    // initSendGpsDataToCameraTask();
 
-    /* 4. 切换相机至普通视频模式 */
-    cJSON *json_result2 = command_logic_switch_camera_mode(CAMERA_MODE_NORMAL);
-    print_json_result(json_result2);
+    // /* 3. 获取设备版本信息并打印 */
+    // cJSON *json_result = command_logic_get_version();
+    // print_json_result(json_result);
 
-    /* 5. 开始录制 */
-    cJSON *json_result3 = command_logic_start_record();
-    print_json_result(json_result3);
+    // /* 4. 切换相机至普通视频模式 */
+    // cJSON *json_result2 = command_logic_switch_camera_mode(CAMERA_MODE_NORMAL);
+    // print_json_result(json_result2);
 
-    /* 6. GPS 推送示例 */
-    /************************************************************************************************/
+    // /* 5. 开始录制 */
+    // cJSON *json_result3 = command_logic_start_record();
+    // print_json_result(json_result3);
 
-    // 创建定时器，设置为 100 毫秒触发一次，即 10Hz
-    gps_timer_handle = xTimerCreate("GPS Timer", pdMS_TO_TICKS(100), pdTRUE, (void *)0, gps_timer_callback);
-    if (gps_timer_handle == NULL) {
-        ESP_LOGE(TAG, "Failed to create GPS timer");
-        return;
-    }
+    // /* 6. GPS 推送示例 */
+    // /************************************************************************************************/
 
-    // 启动定时器
-    if (xTimerStart(gps_timer_handle, 0) != pdPASS) {
-        ESP_LOGE(TAG, "Failed to start GPS timer");
-        return;
-    }
+    // // 创建定时器，设置为 100 毫秒触发一次，即 10Hz
+    // gps_timer_handle = xTimerCreate("GPS Timer", pdMS_TO_TICKS(100), pdTRUE, (void *)0, gps_timer_callback);
+    // if (gps_timer_handle == NULL) {
+    //     ESP_LOGE(TAG, "Failed to create GPS timer");
+    //     return;
+    // }
 
-    // 假设录制的时间结束后，停止录制
-    vTaskDelay(pdMS_TO_TICKS(20000)); // 等待 20 秒模拟数据推送
+    // // 启动定时器
+    // if (xTimerStart(gps_timer_handle, 0) != pdPASS) {
+    //     ESP_LOGE(TAG, "Failed to start GPS timer");
+    //     return;
+    // }
 
-    // 停止定时器
-    if (xTimerStop(gps_timer_handle, 0) != pdPASS) {
-        ESP_LOGE(TAG, "Failed to stop GPS timer");
-    }
+    // // 假设录制的时间结束后，停止录制
+    // vTaskDelay(pdMS_TO_TICKS(20000)); // 等待 20 秒模拟数据推送
 
-    // 删除定时器，释放资源
-    if (xTimerDelete(gps_timer_handle, 0) != pdPASS) {
-        ESP_LOGE(TAG, "Failed to delete GPS timer");
-    }
+    // // 停止定时器
+    // if (xTimerStop(gps_timer_handle, 0) != pdPASS) {
+    //     ESP_LOGE(TAG, "Failed to stop GPS timer");
+    // }
 
-    /************************************************************************************************/
+    // // 删除定时器，释放资源
+    // if (xTimerDelete(gps_timer_handle, 0) != pdPASS) {
+    //     ESP_LOGE(TAG, "Failed to delete GPS timer");
+    // }
 
-    /* 7. 停止录制 */
-    cJSON *json_result4 = command_logic_stop_record();
-    print_json_result(json_result4);
+    // /************************************************************************************************/
 
-    /* 8. 断开BLE连接 */
-    connect_logic_ble_disconnect();
+    // /* 7. 停止录制 */
+    // cJSON *json_result4 = command_logic_stop_record();
+    // print_json_result(json_result4);
+
+    // /* 8. 断开BLE连接 */
+    // connect_logic_ble_disconnect();
 
     // // ===== 后续逻辑循环 =====
     while (1) {

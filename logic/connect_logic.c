@@ -9,6 +9,7 @@
 #include "enums_logic.h"
 #include "connect_logic.h"
 #include "command_logic.h"
+#include "status_logic.h"
 #include "dji_protocol_data_structures.h"
 
 #define TAG "LOGIC_CONNECT"
@@ -36,6 +37,8 @@ void receive_camera_disconnect_handler() {
     }
 
     connect_state = CONNECT_STATE_DISCONNECTED;
+
+    camera_status_initialized = false;
 
     ESP_LOGI(TAG, "Current state: DISCONNECTED.");
 }

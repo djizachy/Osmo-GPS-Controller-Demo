@@ -9,6 +9,7 @@
 #include "enums_logic.h"
 #include "connect_logic.h"
 #include "command_logic.h"
+#include "status_logic.h"
 #include "dji_protocol_parser.h"
 #include "dji_protocol_data_structures.h"
 
@@ -42,6 +43,7 @@ cJSON* send_command(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, const voi
     if (!is_data_layer_initialized()) {
         ESP_LOGI(TAG, "Data layer not initialized, initializing now...");
         data_init();
+        data_register_status_update_callback(update_camera_state_handler);
         if (!is_data_layer_initialized()) {
             ESP_LOGE(TAG, "Failed to initialize data layer");
             return NULL;

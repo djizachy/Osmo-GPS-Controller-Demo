@@ -13,8 +13,8 @@ extern bool camera_status_initialized;
 
 void print_camera_status();
 
-cJSON* subscript_camera_status(uint8_t push_mode, uint8_t push_freq);
+int subscript_camera_status(uint8_t push_mode, uint8_t push_freq);
 
-void update_camera_state_handler(cJSON *parsed_data);
+void update_camera_state_handler(void *data);
 
 #endif

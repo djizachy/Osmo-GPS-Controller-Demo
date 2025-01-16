@@ -55,72 +55,71 @@ int subscript_camera_status(uint8_t push_mode, uint8_t push_freq) {
         .reserved = {0, 0, 0, 0}
     };
 
-    send_command(0x1D, 0x05, CMD_NO_RESPONSE, &command_frame, seq, 5000, CREATE_MODE_STRUCT);
+    send_command(0x1D, 0x05, CMD_NO_RESPONSE, &command_frame, seq, 5000);
 
     return 0;
 }
 
 /**
  * @brief 更新相机状态机
- * @param parsed_data 解析后的相机状态数据（cJSON）
+ * @param data
  */
-void update_camera_state_handler(cJSON *parsed_data) {
-    if (!parsed_data) {
+void update_camera_state_handler(void *data) {
+    if (!data) {
         ESP_LOGE(TAG, "logic_update_camera_state: Received NULL data.");
         return;
     }
 
-    // 提取并更新相机模式
-    cJSON *camera_mode_item = cJSON_GetObjectItem(parsed_data, "camera_mode");
-    if (camera_mode_item && cJSON_IsNumber(camera_mode_item)) {
-        current_camera_mode = (uint8_t)camera_mode_item->valueint;
+    const camera_status_push_command_frame *parsed_data = (const camera_status_push_command_frame *)data;
+
+    bool state_changed = false;
+
+    // 检查并更新相机模式
+    if (current_camera_mode != parsed_data->camera_mode) {
+        current_camera_mode = parsed_data->camera_mode;
         ESP_LOGI(TAG, "Camera mode updated to: %d", current_camera_mode);
-    } else {
-        ESP_LOGW(TAG, "Camera mode not found or invalid.");
+        state_changed = true;
     }
 
-    // 提取并更新相机状态
-    cJSON *camera_status_item = cJSON_GetObjectItem(parsed_data, "camera_status");
-    if (camera_status_item && cJSON_IsNumber(camera_status_item)) {
-        current_camera_status = (uint8_t)camera_status_item->valueint;
+    // 检查并更新相机状态
+    if (current_camera_status != parsed_data->camera_status) {
+        current_camera_status = parsed_data->camera_status;
         ESP_LOGI(TAG, "Camera status updated to: %d", current_camera_status);
-    } else {
-        ESP_LOGW(TAG, "Camera status not found or invalid.");
+        state_changed = true;
     }
 
-    // 提取并更新视频分辨率
-    cJSON *video_resolution_item = cJSON_GetObjectItem(parsed_data, "video_resolution");
-    if (video_resolution_item && cJSON_IsNumber(video_resolution_item)) {
-        current_video_resolution = (uint8_t)video_resolution_item->valueint;
+    // 检查并更新视频分辨率
+    if (current_video_resolution != parsed_data->video_resolution) {
+        current_video_resolution = parsed_data->video_resolution;
         ESP_LOGI(TAG, "Video resolution updated to: %d", current_video_resolution);
-    } else {
-        ESP_LOGW(TAG, "Video resolution not found or invalid.");
+        state_changed = true;
     }
 
-    // 提取并更新帧率
-    cJSON *fps_idx_item = cJSON_GetObjectItem(parsed_data, "fps_idx");
-    if (fps_idx_item && cJSON_IsNumber(fps_idx_item)) {
-        current_fps_idx = (uint8_t)fps_idx_item->valueint;
+    // 检查并更新帧率
+    if (current_fps_idx != parsed_data->fps_idx) {
+        current_fps_idx = parsed_data->fps_idx;
         ESP_LOGI(TAG, "FPS index updated to: %d", current_fps_idx);
-    } else {
-        ESP_LOGW(TAG, "FPS index not found or invalid.");
+        state_changed = true;
     }
 
-    // 提取并更新电子防抖模式
-    cJSON *eis_mode_item = cJSON_GetObjectItem(parsed_data, "EIS_mode");
-    if (eis_mode_item && cJSON_IsNumber(eis_mode_item)) {
-        current_eis_mode = (uint8_t)eis_mode_item->valueint;
+    // 检查并更新电子防抖模式
+    if (current_eis_mode != parsed_data->eis_mode) {
+        current_eis_mode = parsed_data->eis_mode;
         ESP_LOGI(TAG, "EIS mode updated to: %d", current_eis_mode);
-    } else {
-        ESP_LOGW(TAG, "EIS mode not found or invalid.");
+        state_changed = true;
     }
 
-    // 执行状态切换后设置标志位
-    if(camera_status_initialized == false) {
+    // 如果状态尚未初始化，标记为已初始化
+    if (!camera_status_initialized) {
         camera_status_initialized = true;
         ESP_LOGI(TAG, "Camera state fully updated and marked as initialized.");
+        state_changed = true;  // 强制打印状态，因为这是初始化
     }
 
-    print_camera_status();
-    cJSON_Delete(parsed_data);
+    // 如果状态变更或第一次初始化，打印当前相机状态
+    if (state_changed) {
+        print_camera_status();
+    }
+
+    free(data);
 }

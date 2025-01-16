@@ -3,7 +3,6 @@
 #include "freertos/semphr.h"
 #include "freertos/timers.h"
 #include "esp_log.h"
-#include "cJSON.h"
 
 #include "data.h"
 #include "ble.h"
@@ -20,10 +19,6 @@
 
 static bool data_layer_initialized = false;
 
-bool is_data_layer_initialized(void) {
-    return data_layer_initialized;
-}
-
 /* 条目结构 */
 typedef struct {
     bool in_use;
@@ -31,7 +26,8 @@ typedef struct {
     uint16_t seq;                 // 如果 is_seq_based 为 true，则有效
     uint8_t cmd_set;              // 如果 is_seq_based 为 false，则有效
     uint8_t cmd_id;               // 如果 is_seq_based 为 false，则有效
-    cJSON *parse_result;          // 解析后的 cJSON 结果
+    void *parse_result;           // 解析后的通用结构体
+    size_t parse_result_length;   // 解析结果的长度
     SemaphoreHandle_t sem;        // 用于同步等待
     TickType_t last_access_time;  // 最近访问的时间戳，用于 LRU 策略
 } entry_t;
@@ -55,9 +51,10 @@ static void reset_entries(void) {
         s_entries[i].cmd_id = 0;
         s_entries[i].last_access_time = 0;
         if (s_entries[i].parse_result) {
-            cJSON_Delete(s_entries[i].parse_result);
-            s_entries[i].parse_result = NULL;
+            free(s_entries[i].parse_result);   // 释放内存
+            s_entries[i].parse_result = NULL;  // 设置为 NULL
         }
+        s_entries[i].parse_result_length = 0;
         if (s_entries[i].sem) {
             vSemaphoreDelete(s_entries[i].sem);
             s_entries[i].sem = NULL;
@@ -98,9 +95,10 @@ static void free_entry(entry_t *entry) {
         entry->cmd_id = 0;
         entry->last_access_time = 0;
         if (entry->parse_result) {
-            cJSON_Delete(entry->parse_result);
+            free(entry->parse_result);
             entry->parse_result = NULL;
         }
+        entry->parse_result_length = 0;
         if (entry->sem) {
             vSemaphoreDelete(entry->sem);
             entry->sem = NULL;
@@ -108,15 +106,13 @@ static void free_entry(entry_t *entry) {
     }
 }
 
-/* 分配一个空闲的 entry，基于 seq 或 cmd_set/cmd_id */
+/* 分配一个空闲的 entry，基于 seq 或 cmd */
 static entry_t* allocate_entry_by_seq(uint16_t seq) {
     // 首先检查是否已存在相同 seq 的条目
     entry_t *existing_entry = find_entry_by_seq(seq);
     if (existing_entry) {
-        // 覆盖现有条目
         ESP_LOGI(TAG, "Overwriting existing entry for seq=0x%04X", seq);
         free_entry(existing_entry);
-        // 继续分配新的条目
     }
 
     entry_t* oldest_entry = NULL;  // 用于记录最久未使用的条目
@@ -124,13 +120,13 @@ static entry_t* allocate_entry_by_seq(uint16_t seq) {
 
     for (int i = 0; i < MAX_SEQ_ENTRIES; i++) {
         if (!s_entries[i].in_use) {
-            // 找到一个空闲条目
             s_entries[i].in_use = true;
             s_entries[i].is_seq_based = true;
             s_entries[i].seq = seq;
             s_entries[i].cmd_set = 0;
             s_entries[i].cmd_id = 0;
             s_entries[i].parse_result = NULL;
+            s_entries[i].parse_result_length = 0;
             s_entries[i].sem = xSemaphoreCreateBinary();
             if (s_entries[i].sem == NULL) {
                 ESP_LOGE(TAG, "Failed to create semaphore for seq=0x%04X", seq);
@@ -141,7 +137,7 @@ static entry_t* allocate_entry_by_seq(uint16_t seq) {
             return &s_entries[i];
         }
 
-        // 寻找最久未使用的条目
+        // 最久未使用的条目
         if (s_entries[i].last_access_time < oldest_access_time) {
             oldest_access_time = s_entries[i].last_access_time;
             oldest_entry = &s_entries[i];
@@ -162,6 +158,7 @@ static entry_t* allocate_entry_by_seq(uint16_t seq) {
         oldest_entry->cmd_set = 0;
         oldest_entry->cmd_id = 0;
         oldest_entry->parse_result = NULL;
+        oldest_entry->parse_result_length = 0;
         oldest_entry->sem = xSemaphoreCreateBinary();
         if (oldest_entry->sem == NULL) {
             ESP_LOGE(TAG, "Failed to create semaphore for seq=0x%04X", seq);
@@ -172,7 +169,7 @@ static entry_t* allocate_entry_by_seq(uint16_t seq) {
         return oldest_entry;
     }
 
-    return NULL; // 没有空闲条目
+    return NULL;
 }
 
 static entry_t* allocate_entry_by_cmd(uint8_t cmd_set, uint8_t cmd_id) {
@@ -180,7 +177,7 @@ static entry_t* allocate_entry_by_cmd(uint8_t cmd_set, uint8_t cmd_id) {
     entry_t *existing_entry = find_entry_by_cmd_id(cmd_set, cmd_id);
     if (existing_entry) {
         // 条目已存在，不覆盖
-        ESP_LOGI(TAG, "Entry for cmd_set=0x%04X cmd_id=0x%04X already exists", cmd_set, cmd_id);
+        ESP_LOGI(TAG, "Entry for cmd_set=0x%04X cmd_id=0x%04X already exists, it will be overwritten", cmd_set, cmd_id);
         return existing_entry;
     }
 
@@ -197,6 +194,7 @@ static entry_t* allocate_entry_by_cmd(uint8_t cmd_set, uint8_t cmd_id) {
             s_entries[i].cmd_set = cmd_set;
             s_entries[i].cmd_id = cmd_id;
             s_entries[i].parse_result = NULL;
+            s_entries[i].parse_result_length = 0;
             s_entries[i].sem = xSemaphoreCreateBinary();
             if (s_entries[i].sem == NULL) {
                 ESP_LOGE(TAG, "Failed to create semaphore for cmd_set=0x%04X cmd_id=0x%04X", cmd_set, cmd_id);
@@ -228,6 +226,7 @@ static entry_t* allocate_entry_by_cmd(uint8_t cmd_set, uint8_t cmd_id) {
         oldest_entry->cmd_set = cmd_set;
         oldest_entry->cmd_id = cmd_id;
         oldest_entry->parse_result = NULL;
+        oldest_entry->parse_result_length = 0;
         oldest_entry->sem = xSemaphoreCreateBinary();
         if (oldest_entry->sem == NULL) {
             ESP_LOGE(TAG, "Failed to create semaphore for cmd_set=0x%04X cmd_id=0x%04X", cmd_set, cmd_id);
@@ -285,6 +284,10 @@ void data_init(void) {
 
     data_layer_initialized = true;
     ESP_LOGI(TAG, "Data layer initialized successfully");
+}
+
+bool is_data_layer_initialized(void) {
+    return data_layer_initialized;
 }
 
 /* 发送数据帧（有响应） */
@@ -379,9 +382,9 @@ esp_err_t data_write_without_response(uint16_t seq, const uint8_t *raw_data, siz
 }
 
 /* 等待特定 seq 的解析结果 */
-esp_err_t data_wait_for_result_by_seq(uint16_t seq, int timeout_ms, cJSON **out_json) {
-    if (!out_json) {
-        ESP_LOGE(TAG, "out_json is NULL");
+esp_err_t data_wait_for_result_by_seq(uint16_t seq, int timeout_ms, void **out_result, size_t *out_result_length) {
+    if (!out_result || !out_result_length) {
+        ESP_LOGE(TAG, "out_result or out_result_length is NULL");
         return ESP_ERR_INVALID_ARG;
     }
 
@@ -414,11 +417,27 @@ esp_err_t data_wait_for_result_by_seq(uint16_t seq, int timeout_ms, cJSON **out_
 
             // 取出解析结果
             if (entry->parse_result) {
-                *out_json = cJSON_Duplicate(entry->parse_result, 1); // 深拷贝
-                if (*out_json == NULL) {
-                    ESP_LOGE(TAG, "Failed to duplicate JSON result");
+                // 为 out_result 分配新内存
+                *out_result = malloc(entry->parse_result_length);
+                if (*out_result == NULL) {
+                    ESP_LOGE(TAG, "Failed to allocate memory for out_result");
+                    if (xSemaphoreTake(s_map_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+                        free_entry(entry);
+                        xSemaphoreGive(s_map_mutex);
+                    }
                     return ESP_ERR_NO_MEM;
                 }
+
+                // 拷贝 entry->parse_result 数据到 out_result
+                memcpy(*out_result, entry->parse_result, entry->parse_result_length);
+                *out_result_length = entry->parse_result_length;  // 设置长度
+            } else {
+                ESP_LOGE(TAG, "Parse result is NULL for seq=0x%04X", seq);
+                if (xSemaphoreTake(s_map_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+                    free_entry(entry);
+                    xSemaphoreGive(s_map_mutex);
+                }
+                return ESP_ERR_NOT_FOUND;
             }
 
             // 释放条目
@@ -427,7 +446,7 @@ esp_err_t data_wait_for_result_by_seq(uint16_t seq, int timeout_ms, cJSON **out_
                 xSemaphoreGive(s_map_mutex);
             }
 
-            return ESP_OK; // 成功返回
+            return ESP_OK;
         }
 
         // 如果没有找到 entry，检查是否超时
@@ -435,7 +454,7 @@ esp_err_t data_wait_for_result_by_seq(uint16_t seq, int timeout_ms, cJSON **out_
         if (elapsed_time >= timeout_ticks) {
             ESP_LOGW(TAG, "Timeout while waiting for seq=0x%04X, no entry found", seq);
             xSemaphoreGive(s_map_mutex);
-            return ESP_ERR_TIMEOUT; // 超时返回
+            return ESP_ERR_TIMEOUT;
         }
 
         // 没有找到 entry，释放锁并等待一段时间再重试
@@ -445,13 +464,9 @@ esp_err_t data_wait_for_result_by_seq(uint16_t seq, int timeout_ms, cJSON **out_
 }
 
 /* 等待特定 cmd_set 和 cmd_id 的解析结果，并返回 seq */
-esp_err_t data_wait_for_result_by_cmd(uint8_t cmd_set, uint8_t cmd_id, int timeout_ms, cJSON **out_json, uint16_t *out_seq) {
-    if (!out_json) {
-        ESP_LOGE(TAG, "out_json is NULL");
-        return ESP_ERR_INVALID_ARG;
-    }
-    if (!out_seq) {
-        ESP_LOGE(TAG, "out_seq is NULL");
+esp_err_t data_wait_for_result_by_cmd(uint8_t cmd_set, uint8_t cmd_id, int timeout_ms, uint16_t *out_seq, void **out_result, size_t *out_result_length) {
+    if (!out_result || !out_seq || !out_result_length) {
+        ESP_LOGE(TAG, "out_result, out_seq or out_result_length is NULL");
         return ESP_ERR_INVALID_ARG;
     }
 
@@ -484,14 +499,26 @@ esp_err_t data_wait_for_result_by_cmd(uint8_t cmd_set, uint8_t cmd_id, int timeo
 
             // 取出解析结果
             if (entry->parse_result) {
-                *out_json = cJSON_Duplicate(entry->parse_result, 1); // 深拷贝
-                if (*out_json == NULL) {
-                    ESP_LOGE(TAG, "Failed to duplicate JSON result");
+                *out_result = malloc(entry->parse_result_length);
+                if (*out_result == NULL) {
+                    ESP_LOGE(TAG, "Failed to allocate memory for out_result");
+                    if (xSemaphoreTake(s_map_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+                        free_entry(entry);
+                        xSemaphoreGive(s_map_mutex);
+                    }
                     return ESP_ERR_NO_MEM;
                 }
+                memcpy(*out_result, entry->parse_result, entry->parse_result_length);
+                *out_result_length = entry->parse_result_length;
+            } else {
+                ESP_LOGE(TAG, "Parse result is NULL for cmd_set=0x%04X cmd_id=0x%04X", cmd_set, cmd_id);
+                if (xSemaphoreTake(s_map_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+                    free_entry(entry);
+                    xSemaphoreGive(s_map_mutex);
+                }
+                return ESP_ERR_NOT_FOUND;
             }
 
-            // 取出 seq
             *out_seq = entry->seq;
 
             // 释放条目
@@ -500,7 +527,7 @@ esp_err_t data_wait_for_result_by_cmd(uint8_t cmd_set, uint8_t cmd_id, int timeo
                 xSemaphoreGive(s_map_mutex);
             }
 
-            return ESP_OK; // 成功返回
+            return ESP_OK;
         }
 
         // 如果没有找到 entry，检查是否超时
@@ -550,10 +577,11 @@ void receive_camera_notify_handler(const uint8_t *raw_data, size_t raw_data_leng
         }
 
         // 解析 data 段
-        cJSON *parse_result = NULL;
+        void *parse_result = NULL;
+        size_t parse_result_length = 0;
         if (frame.data && frame.data_length > 0) {
-            // 假设 protocol_parse_data 返回 cJSON* 类型
-            parse_result = protocol_parse_data(frame.data, frame.data_length, frame.cmd_type); 
+            // 假设 protocol_parse_data 返回 void* 类型
+            parse_result = protocol_parse_data(frame.data, frame.data_length, frame.cmd_type, &parse_result_length);
             if (parse_result == NULL) {
                 ESP_LOGE(TAG, "Failed to parse data segment, error: %d", ret);
             } else {
@@ -573,10 +601,11 @@ void receive_camera_notify_handler(const uint8_t *raw_data, size_t raw_data_leng
         if (xSemaphoreTake(s_map_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
             entry_t *entry = find_entry_by_seq(actual_seq);
             if (entry) {
-                // 假设 parse_result 是 protocol_parse_data 返回的 cJSON 对象
+                // 假设 parse_result 是 protocol_parse_data 返回的 void* 对象
                 if (parse_result != NULL) {
                     // 将解析结果放入对应的条目
-                    entry->parse_result = parse_result;  // 将 cJSON 结果存储到条目的 value 字段
+                    entry->parse_result = parse_result;  // 将 void* 结果存储到条目的 value 字段
+                    entry->parse_result_length = parse_result_length; // 记录结果长度
                     // 唤醒等待的任务
                     xSemaphoreGive(entry->sem);
                 } else {
@@ -592,6 +621,7 @@ void receive_camera_notify_handler(const uint8_t *raw_data, size_t raw_data_leng
                 } else {
                     // 初始化解析结果
                     entry->parse_result = parse_result;
+                    entry->parse_result_length = parse_result_length;
                     entry->seq = actual_seq;
                     entry->last_access_time = xTaskGetTickCount();
                     ESP_LOGI(TAG, "New entry allocated for seq=0x%04X", frame.seq);
@@ -602,7 +632,7 @@ void receive_camera_notify_handler(const uint8_t *raw_data, size_t raw_data_leng
         }
 
         // 特殊回调处理
-        if(actual_cmd_set == 0x1D && actual_cmd_id == 0x02 && status_update_callback) {
+        if (actual_cmd_set == 0x1D && actual_cmd_id == 0x02 && status_update_callback) {
             status_update_callback(parse_result);
         }
     } else {

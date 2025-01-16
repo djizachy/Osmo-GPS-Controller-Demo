@@ -1,8 +1,6 @@
 #include <stdio.h>
 #include <string.h>
 #include "esp_log.h"
-#include "cJSON.h"
-
 #include "custom_crc16.h"
 #include "custom_crc32.h"
 
@@ -46,7 +44,8 @@
     PROTOCOL_TAIL_LENGTH \
 )
 
-int protocol_parse_notification(const uint8_t *frame_data, size_t frame_length, protocol_frame_t *frame) {
+// 传入帧原始数据、帧长度，frame_out 结构体作为载体返回
+int protocol_parse_notification(const uint8_t *frame_data, size_t frame_length, protocol_frame_t *frame_out) {
     // 检查最小帧长度
     if (frame_length < 16) { // SOF(1) + Ver/Length(2) + CmdType(1) + ENC(1) + RES(3) + SEQ(2) + CRC-16(2) + CRC-32(4)
         ESP_LOGE(TAG, "Frame too short to be valid");
@@ -87,32 +86,33 @@ int protocol_parse_notification(const uint8_t *frame_data, size_t frame_length, 
     }
 
     // 填充解析结果到结构体
-    frame->sof = frame_data[0];
-    frame->version = version;
-    frame->frame_length = expected_length;
-    frame->cmd_type = frame_data[3];
-    frame->enc = frame_data[4];
-    memcpy(frame->res, &frame_data[5], 3);
-    frame->seq = (frame_data[8] << 8) | frame_data[9];
-    frame->crc16 = crc16_received;
+    frame_out->sof = frame_data[0];
+    frame_out->version = version;
+    frame_out->frame_length = expected_length;
+    frame_out->cmd_type = frame_data[3];
+    frame_out->enc = frame_data[4];
+    memcpy(frame_out->res, &frame_data[5], 3);
+    frame_out->seq = (frame_data[8] << 8) | frame_data[9];
+    frame_out->crc16 = crc16_received;
 
     // 处理数据段 (DATA)
     if (frame_length > 16) { // DATA 段存在
-        frame->data = &frame_data[12];
-        frame->data_length = frame_length - 16; // DATA 长度
+        frame_out->data = &frame_data[12];
+        frame_out->data_length = frame_length - 16; // DATA 长度
     } else { // DATA 段为空
-        frame->data = NULL;
-        frame->data_length = 0;
+        frame_out->data = NULL;
+        frame_out->data_length = 0;
         ESP_LOGW(TAG, "DATA segment is empty");
     }
 
-    frame->crc32 = crc32_received;
+    frame_out->crc32 = crc32_received;
 
     ESP_LOGI(TAG, "Frame parsed successfully");
     return 0;
 }
 
-cJSON* protocol_parse_data(const uint8_t *data, size_t data_length, uint8_t cmd_type) {
+// 传入 DATA 数据段、长度和命令类型，data_length_without_cmd_out 返回上层
+void* protocol_parse_data(const uint8_t *data, size_t data_length, uint8_t cmd_type, size_t *data_length_without_cmd_out) {
     if (data == NULL || data_length < 2) {
         ESP_LOGE(TAG, "Invalid data segment: data is NULL or too short");
         return NULL;
@@ -122,18 +122,11 @@ cJSON* protocol_parse_data(const uint8_t *data, size_t data_length, uint8_t cmd_
     uint8_t cmd_id = data[1];
 
     // 查找对应的命令描述符
-    const data_descriptor_t *descriptor = find_descriptor(cmd_set, cmd_id);
-
-    // 如果找不到描述符，尝试通过结构体描述符查找
-    const structure_descriptor_t *structure_descriptor = NULL;
+    const data_descriptor_t *descriptor = find_data_descriptor(cmd_set, cmd_id);
     
     if (descriptor == NULL) {
         ESP_LOGW(TAG, "No descriptor found for CmdSet 0x%02X and CmdID 0x%02X, trying structure descriptor", cmd_set, cmd_id);
-        structure_descriptor = find_descriptor_by_structure(cmd_set, cmd_id);
-        if (structure_descriptor == NULL) {
-            ESP_LOGE(TAG, "No structure descriptor found for CmdSet 0x%02X and CmdID 0x%02X", cmd_set, cmd_id);
-            return NULL;
-        }
+        return NULL;
     }
 
     // 取出应答帧数据
@@ -142,49 +135,38 @@ cJSON* protocol_parse_data(const uint8_t *data, size_t data_length, uint8_t cmd_
 
     ESP_LOGI(TAG, "CmdSet: 0x%02X, CmdID: 0x%02X", cmd_set, cmd_id);
 
-    // 使用 cJSON 创建一个 JSON 对象来存储响应数据
-    cJSON *response_json = cJSON_CreateObject();
+    // 使用通用结构体来存储响应数据
+    void *response_struct = malloc(response_length);
+    if (response_struct == NULL) {
+        ESP_LOGE(TAG, "Memory allocation failed for parsed data");
+        return NULL;
+    }
 
-    // 调用解析函数
     int result = -1;
     if (descriptor != NULL) {
-        // 如果找到 data_descriptor，则使用通用数据解析函数
-        result = data_parser(cmd_set, cmd_id, cmd_type, response_data, response_length, response_json);
-    } else if (structure_descriptor != NULL && structure_descriptor->parser != NULL) {
-        // 如果找到 structure_descriptor，则使用结构体解析函数
-        result = data_parser_by_structure(cmd_set, cmd_id, cmd_type, response_data, response_length, response_json);
+        result = data_parser_by_structure(cmd_set, cmd_id, cmd_type, response_data, response_length, response_struct);
     }
 
     // 检查解析结果
     if (result == 0) {
-        // 解析成功
         ESP_LOGI(TAG, "Data parsed successfully for CmdSet 0x%02X and CmdID 0x%02X", cmd_set, cmd_id);
+        if (data_length_without_cmd_out != NULL) {
+            *data_length_without_cmd_out = response_length;
+        }
     } else {
-        // 解析失败
         ESP_LOGE(TAG, "Failed to parse data for CmdSet 0x%02X and CmdID 0x%02X", cmd_set, cmd_id);
-        cJSON_Delete(response_json);
+        free(response_struct);
         return NULL;
     }
 
-    return response_json;
+    return response_struct;
 }
 
-uint8_t* protocol_create_frame(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, const void *key_values_or_structure, uint16_t seq, size_t *frame_length, uint8_t create_mode) {
+uint8_t* protocol_create_frame(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, const void *structure, uint16_t seq, size_t *frame_length_out) {
     size_t data_length = 0;
     uint8_t *payload_data = NULL;
 
-    // 根据创建方式调用不同的函数
-    if (create_mode == 0) {
-        // 使用 data_creator
-        payload_data = data_creator(cmd_set, cmd_id, cmd_type, (const cJSON *)key_values_or_structure, &data_length);
-    } else if (create_mode == 1) {
-        // 使用 data_creator_by_structure
-        payload_data = data_creator_by_structure(cmd_set, cmd_id, cmd_type, key_values_or_structure, &data_length);
-    } else {
-        // 无效的创建方式
-        ESP_LOGE(TAG, "Invalid create_mode: %d", create_mode);
-        return NULL;
-    }
+    payload_data = data_creator_by_structure(cmd_set, cmd_id, cmd_type, structure, &data_length);
     
     // payload_data 为 NULL 且 data_length 为 0 时视为空数据段，不报错
     if (payload_data == NULL && data_length > 0) {
@@ -193,11 +175,11 @@ uint8_t* protocol_create_frame(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type
     }
 
     // 计算总帧长度
-    *frame_length = PROTOCOL_HEADER_LENGTH + data_length + PROTOCOL_TAIL_LENGTH;
-    printf("Frame Length: %zu\n", *frame_length);
+    *frame_length_out = PROTOCOL_HEADER_LENGTH + data_length + PROTOCOL_TAIL_LENGTH;
+    printf("Frame Length: %zu\n", *frame_length_out);
 
     // 分配内存以存储整个帧
-    uint8_t *frame = (uint8_t *)malloc(*frame_length);
+    uint8_t *frame = (uint8_t *)malloc(*frame_length_out);
     if (frame == NULL) {
         ESP_LOGE(TAG, "Memory allocation failed for protocol frame");
         free(payload_data);
@@ -205,7 +187,7 @@ uint8_t* protocol_create_frame(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type
     }
 
     // 初始化帧内容
-    memset(frame, 0, *frame_length);
+    memset(frame, 0, *frame_length_out);
 
     // 填充协议头部
     size_t offset = 0;
@@ -213,7 +195,7 @@ uint8_t* protocol_create_frame(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type
 
     // Ver/Length 字段
     uint16_t version = 0;  // 固定版本号
-    uint16_t ver_length = (version << 10) | (*frame_length & 0x03FF);
+    uint16_t ver_length = (version << 10) | (*frame_length_out & 0x03FF);
     frame[offset++] = ver_length & 0xFF;        // Ver/Length 低字节
     frame[offset++] = (ver_length >> 8) & 0xFF; // Ver/Length 高字节
 

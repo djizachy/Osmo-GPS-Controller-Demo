@@ -2,11 +2,6 @@
 #define __ENUMS_LOGIC_H__
 
 typedef enum {
-    CREATE_MODE_CJSON = 0,  // 通过 cJSON
-    CREATE_MODE_STRUCT = 1  // 通过结构体
-} create_mode_t;
-
-typedef enum {
     CMD_NO_RESPONSE = 0x00,       // 命令帧 - 发送数据后不需要应答
     CMD_RESPONSE_OR_NOT = 0x01,   // 命令帧 - 发送数据后需要应答，没收到结果不报错
     CMD_WAIT_RESULT = 0x02,       // 命令帧 - 发送数据后需要应答，没收到结果会报错

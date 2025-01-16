@@ -2,7 +2,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
-#include "cJSON.h"
 
 #include "ble.h"
 #include "data.h"
@@ -125,13 +124,25 @@ int connect_logic_ble_disconnect(void) {
     return 0;
 }
 
-// 协议连接函数
+/**
+ * @brief 协议连接函数
+ * 
+ * @param device_id 设备ID
+ * @param mac_addr_len MAC地址长度
+ * @param mac_addr 指向MAC地址的指针
+ * @param fw_version 固件版本
+ * @param verify_mode 验证模式
+ * @param verify_data 验证数据
+ * @param camera_reserved 相机保留字段
+ * @return int 成功返回 0，失败返回 -1
+ */
 int connect_logic_protocol_connect(uint32_t device_id, uint8_t mac_addr_len, const int8_t *mac_addr,
-                                    uint32_t fw_version, uint8_t verify_mode, uint16_t verify_data,
-                                    uint8_t camera_reserved) {
+                                   uint32_t fw_version, uint8_t verify_mode, uint16_t verify_data,
+                                   uint8_t camera_reserved) {
     ESP_LOGI(TAG, "%s: Starting protocol connection", __FUNCTION__);
     uint16_t seq = generate_seq();
 
+    // 构造连接请求命令帧
     connection_request_command_frame connection_request = {
         .device_id = device_id,
         .mac_addr_len = mac_addr_len,
@@ -141,58 +152,54 @@ int connect_logic_protocol_connect(uint32_t device_id, uint8_t mac_addr_len, con
     };
     memcpy(connection_request.mac_addr, mac_addr, mac_addr_len);
 
-    // 发送连接请求命令
+
+    // STEP1: 相机发送连接请求命令
     ESP_LOGI(TAG, "Sending connection request to camera...");
-    cJSON *response = send_command(0x00, 0x19, CMD_WAIT_RESULT, &connection_request, seq, 5000, CREATE_MODE_STRUCT);
-    if (!response) {
+    CommandResult result = send_command(0x00, 0x19, CMD_WAIT_RESULT, &connection_request, seq, 5000);
+
+    /****************** 连接问题，这里相机可能返回 connection_request_response_frame 也可能返回命令帧 ******************/
+
+    if (result.structure == NULL) {
         ESP_LOGE(TAG, "Failed to send connection request");
         connect_logic_ble_disconnect();
         return -1;
     }
 
     // 解析相机返回的响应
-    int ret_code = cJSON_GetObjectItem(response, "ret_code")->valueint;
-    if (ret_code != 0) {
-        ESP_LOGE(TAG, "Connection request rejected by camera, ret_code: %d", ret_code);
-        cJSON_Delete(response);
+    connection_request_response_frame *response = (connection_request_response_frame *)result.structure;
+    if (response->ret_code != 0) {
+        ESP_LOGE(TAG, "Connection request rejected by camera, ret_code: %d", response->ret_code);
+        free(response);
         connect_logic_ble_disconnect();
         return -1;
     }
 
     ESP_LOGI(TAG, "Connection request accepted, waiting for camera to send connection command...");
+    free(response);
 
-    // 等待相机发送连接请求
-    cJSON *json_result = NULL;
+    // STEP2: 等待相机发送连接请求
+    void *parse_result = NULL;
+    size_t parse_result_length = 0;
     uint16_t received_seq = 0;
-    esp_err_t ret = data_wait_for_result_by_cmd(0x00, 0x19, 30000, &json_result, &received_seq);
-    if (ret != ESP_OK) {
+    esp_err_t ret = data_wait_for_result_by_cmd(0x00, 0x19, 30000, &received_seq, &parse_result, &parse_result_length);
+
+    if (ret != ESP_OK || parse_result == NULL) {
         ESP_LOGE(TAG, "Timeout or error waiting for camera connection command");
         connect_logic_ble_disconnect();
         return -1;
     }
 
     // 解析相机发送的连接请求命令
-    cJSON *verify_mode_item = cJSON_GetObjectItem(json_result, "verify_mode");
-    cJSON *verify_data_item = cJSON_GetObjectItem(json_result, "verify_data");
+    connection_request_command_frame *camera_request = (connection_request_command_frame *)parse_result;
 
-    if (!verify_mode_item || !cJSON_IsNumber(verify_mode_item) || !verify_data_item || !cJSON_IsNumber(verify_data_item)) {
-        ESP_LOGE(TAG, "Invalid connection command format from camera");
-        cJSON_Delete(json_result);
+    if (camera_request->verify_mode != 2) {
+        ESP_LOGE(TAG, "Unexpected verify_mode from camera: %d", camera_request->verify_mode);
+        free(parse_result);
         connect_logic_ble_disconnect();
         return -1;
     }
 
-    int camera_verify_mode = verify_mode_item->valueint;
-    int camera_verify_data = verify_data_item->valueint;
-
-    if (camera_verify_mode != 2) {
-        ESP_LOGE(TAG, "Unexpected verify_mode from camera: %d", camera_verify_mode);
-        cJSON_Delete(json_result);
-        connect_logic_ble_disconnect();
-        return -1;
-    }
-
-    if (camera_verify_data == 0) {
+    if (camera_request->verify_data == 0) {
         ESP_LOGI(TAG, "Camera approved the connection, sending response...");
 
         // 构造连接应答帧
@@ -205,18 +212,18 @@ int connect_logic_protocol_connect(uint32_t device_id, uint8_t mac_addr_len, con
 
         ESP_LOGI(TAG, "Constructed connection response, sending...");
 
-        // 发送连接应答帧
-        send_command(0x00, 0x19, ACK_NO_RESPONSE, &connection_response, received_seq, 5000, CREATE_MODE_STRUCT);
+        // STEP3: 发送连接应答帧
+        send_command(0x00, 0x19, ACK_NO_RESPONSE, &connection_response, received_seq, 5000);
 
         // 设置连接状态为协议连接
         connect_state = CONNECT_STATE_PROTOCOL_CONNECTED;
 
         ESP_LOGI(TAG, "Connection successfully established with camera.");
-        cJSON_Delete(json_result);
+        free(parse_result);
         return 0;
     } else {
         ESP_LOGW(TAG, "Camera rejected the connection, closing Bluetooth link...");
-        cJSON_Delete(json_result);
+        free(parse_result);
         connect_logic_ble_disconnect();
         return -1;
     }

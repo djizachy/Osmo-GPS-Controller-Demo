@@ -16,7 +16,7 @@ const data_descriptor_t *find_data_descriptor(uint8_t cmd_set, uint8_t cmd_id) {
 }
 
 int data_parser_by_structure(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, const uint8_t *data, size_t data_length, void *structure_out) {
-    fprintf(stderr, "Parsing CmdSet: 0x%02X, CmdID: 0x%02X, CmdType: 0x%02X\n", cmd_set, cmd_id, cmd_type);
+    ESP_LOGI(TAG, "Parsing CmdSet: 0x%02X, CmdID: 0x%02X, CmdType: 0x%02X", cmd_set, cmd_id, cmd_type);
 
     const data_descriptor_t *descriptor = find_data_descriptor(cmd_set, cmd_id);
     if (descriptor == NULL) {

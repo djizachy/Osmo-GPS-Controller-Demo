@@ -11,7 +11,7 @@
 
 #define TAG "BLE"
 
-/* 目标设备名称（从 ble_init 传入） */
+/* 目标设备名称 */
 static char s_remote_device_name[ESP_BLE_ADV_NAME_LEN_MAX] = {0};
 
 /* 是否已发起连接、是否已找到目标服务等标记，仅作演示 */
@@ -80,14 +80,7 @@ static void gattc_event_handler(esp_gattc_cb_event_t event,
 /* -------------------------
  *  初始化/扫描/连接相关接口
  * ------------------------- */
-esp_err_t ble_init(const char *remote_name) {
-    if (!remote_name) {
-        ESP_LOGE(TAG, "ble_init failed: remote_name is NULL");
-        return ESP_ERR_INVALID_ARG;
-    }
-    /* 保存目标设备名称 */
-    strncpy(s_remote_device_name, remote_name, sizeof(s_remote_device_name) - 1);
-
+esp_err_t ble_init() {
     /* 初始化 NVS */
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -264,29 +257,52 @@ void ble_set_state_callback(connect_logic_state_callback_t cb) {
  * ---------------------------------------------------------------- */
 
 /* 扫描到目标设备，尝试连接 */
-static void try_to_connect(esp_ble_gap_cb_param_t *scan_result) {
-    s_connecting = true;
-    ESP_LOGI(TAG, "Found target device=%s, stop scanning & connect...", s_remote_device_name);
+#define MIN_RSSI_THRESHOLD -80          // 设置最低信号强度阈值，根据需要调整
+static esp_bd_addr_t best_addr = {0};   // 存储信号最强设备的地址
+static int8_t best_rssi = -128;         // 存储信号最强设备的 RSSI 值，初始化为最弱的信号强度
+
+static TimerHandle_t scan_timer;
+void scan_stop_timer_callback(TimerHandle_t xTimer) {
     esp_ble_gap_stop_scanning();
+    ESP_LOGI(TAG, "Scan stopped after timeout");
+}
+
+static void try_to_connect(esp_bd_addr_t best_addr) {
+    s_connecting = true;
+    ESP_LOGI(TAG, "Try to connect target device name = %s", s_remote_device_name);
 
     esp_ble_gattc_open(s_ble_profile.gattc_if,
-                       scan_result->scan_rst.bda,
-                       scan_result->scan_rst.ble_addr_type,
+                       best_addr,
+                       BLE_ADDR_TYPE_PUBLIC,
                        true);
 }
 
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param) {
     switch (event) {
     case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT:
-        esp_ble_gap_start_scanning(30); // 扫描 30s，可自行调整
+        esp_ble_gap_start_scanning(10);
+
+        ESP_LOGI(TAG, "ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT");
+
+        // 启动定时器，在3秒后停止扫描
+        scan_timer = xTimerCreate("scan_timer", pdMS_TO_TICKS(3000), pdFALSE, (void *)0, scan_stop_timer_callback);
+        if (scan_timer != NULL) {
+            xTimerStart(scan_timer, 0);
+        }
         break;
 
-    case ESP_GAP_BLE_SCAN_START_COMPLETE_EVT:
-        if (param->scan_start_cmpl.status != ESP_BT_STATUS_SUCCESS) {
-            ESP_LOGE(TAG, "scan start failed");
-            break;
+    case ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT:
+        ESP_LOGI(TAG, "scan stopped");
+
+        // 扫描结束后，连接信号最强的设备
+        if (best_rssi > -128) { 
+            ESP_LOGI(TAG, "Connecting to the device with strongest signal: %02x:%02x:%02x:%02x:%02x:%02x",
+                     best_addr[0], best_addr[1], best_addr[2], best_addr[3], best_addr[4], best_addr[5]);
+
+            try_to_connect(best_addr);
+        } else {
+            ESP_LOGW(TAG, "No suitable device found with sufficient signal strength");
         }
-        ESP_LOGI(TAG, "scan start success");
         break;
 
     case ESP_GAP_BLE_SCAN_RESULT_EVT: {
@@ -300,19 +316,28 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
                                 ESP_BLE_AD_TYPE_NAME_CMPL,
                                 &adv_name_len);
 
-            /* 对比名称 */
-            if (adv_name && (strlen(s_remote_device_name) == adv_name_len) &&
-                (strncmp((char *)adv_name, s_remote_device_name, adv_name_len) == 0)) {
-                if (!s_connecting) {
-                    try_to_connect(param);
+            /* 对比名称并记录信号强度 */
+            if (adv_name && adv_name_len > 0) {
+                // 打印搜索到的设备名称和信号强度
+                // ESP_LOGI(TAG, "Found device: %s with RSSI: %d", adv_name, r->scan_rst.rssi);
+
+                // 如果设备名以"OSMO"开头
+                if (strncmp((char *)adv_name, "Osmo", 4) == 0) {
+                    // 记录信号最强的设备
+                    if (r->scan_rst.rssi > best_rssi && r->scan_rst.rssi >= MIN_RSSI_THRESHOLD) {
+                        best_rssi = r->scan_rst.rssi;
+                        memcpy(best_addr, r->scan_rst.bda, sizeof(esp_bd_addr_t)); // 保存设备地址
+
+                        // 更新s_remote_device_name为信号最强设备名
+                        strncpy(s_remote_device_name, (char *)adv_name, sizeof(s_remote_device_name) - 1);
+                        s_remote_device_name[sizeof(s_remote_device_name) - 1] = '\0'; // 确保字符串结束符
+                    }
                 }
             }
         }
         break;
     }
-    case ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT:
-        ESP_LOGI(TAG, "scan stopped");
-        break;
+
     default:
         break;
     }

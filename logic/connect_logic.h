@@ -3,16 +3,19 @@
 
 // 定义连接状态枚举类型
 typedef enum {
-    CONNECT_STATE_DISCONNECTED,       // 断开连接
-    CONNECT_STATE_BLE_CONNECTED,      // BLE 已连接
-    CONNECT_STATE_PROTOCOL_CONNECTED, // 协议链路已连接
+    BLE_NOT_INIT = -1,
+    BLE_INIT_COMPLETE = 0,
+    BLE_SEARCHING = 1,
+    BLE_CONNECTED = 2,
+    PROTOCOL_CONNECTED = 3,
 } connect_state_t;
 
 // 获取当前连接状态
 connect_state_t connect_logic_get_state(void);
 
 // ble 连接
-int connect_logic_ble_connect(const char *camera_name);
+int connect_logic_ble_init();
+int connect_logic_ble_connect();
 
 // 断开 ble 连接
 int connect_logic_ble_disconnect(void);

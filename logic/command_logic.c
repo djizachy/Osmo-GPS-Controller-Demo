@@ -34,19 +34,9 @@ uint16_t generate_seq(void) {
 CommandResult send_command(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, const void *input_raw_data, uint16_t seq, int timeout_ms) { 
     CommandResult result = { NULL, 0 };
 
-    if(connect_logic_get_state() == CONNECT_STATE_DISCONNECTED){
+    if(connect_logic_get_state() <= BLE_INIT_COMPLETE){
         ESP_LOGE(TAG, "BLE not connected");
         return result;
-    }
-
-    if (!is_data_layer_initialized()) {
-        ESP_LOGI(TAG, "Data layer not initialized, initializing now...");
-        data_init();
-        data_register_status_update_callback(update_camera_state_handler);
-        if (!is_data_layer_initialized()) {
-            ESP_LOGE(TAG, "Failed to initialize data layer");
-            return result;
-        }
     }
 
     esp_err_t ret;
@@ -151,7 +141,7 @@ CommandResult send_command(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, co
  */
 camera_mode_switch_response_frame_t* command_logic_switch_camera_mode(camera_mode_t mode) {
     ESP_LOGI(TAG, "%s: Switching camera mode to: %d", __FUNCTION__, mode);
-    if (connect_logic_get_state() != CONNECT_STATE_PROTOCOL_CONNECTED) {
+    if (connect_logic_get_state() != PROTOCOL_CONNECTED) {
         ESP_LOGE(TAG, "Protocol connection to the camera failed. Current connection state: %d", connect_logic_get_state());
         return NULL;
     }
@@ -198,7 +188,7 @@ camera_mode_switch_response_frame_t* command_logic_switch_camera_mode(camera_mod
 version_query_response_frame_t* command_logic_get_version(void) {
     ESP_LOGI(TAG, "%s: Querying device version", __FUNCTION__);
     
-    if (connect_logic_get_state() != CONNECT_STATE_PROTOCOL_CONNECTED) {
+    if (connect_logic_get_state() != PROTOCOL_CONNECTED) {
         ESP_LOGE(TAG, "Protocol connection to the camera failed. Current connection state: %d", connect_logic_get_state());
         return NULL;
     }
@@ -237,7 +227,7 @@ version_query_response_frame_t* command_logic_get_version(void) {
 record_control_response_frame_t* command_logic_start_record(void) {
     ESP_LOGI(TAG, "%s: Starting recording", __FUNCTION__);
 
-    if (connect_logic_get_state() != CONNECT_STATE_PROTOCOL_CONNECTED) {
+    if (connect_logic_get_state() != PROTOCOL_CONNECTED) {
         ESP_LOGE(TAG, "Protocol connection to the camera failed. Current connection state: %d", connect_logic_get_state());
         return NULL;
     }
@@ -279,7 +269,7 @@ record_control_response_frame_t* command_logic_start_record(void) {
 record_control_response_frame_t* command_logic_stop_record(void) {
     ESP_LOGI(TAG, "%s: Stopping recording", __FUNCTION__);
 
-    if (connect_logic_get_state() != CONNECT_STATE_PROTOCOL_CONNECTED) {
+    if (connect_logic_get_state() != PROTOCOL_CONNECTED) {
         ESP_LOGE(TAG, "Protocol connection to the camera failed. Current connection state: %d", connect_logic_get_state());
         return NULL;
     }
@@ -323,7 +313,7 @@ gps_data_push_response_frame* command_logic_push_gps_data(const gps_data_push_co
     ESP_LOGI(TAG, "Pushing GPS data");
 
     // 检查连接状态
-    if (connect_logic_get_state() != CONNECT_STATE_PROTOCOL_CONNECTED) {
+    if (connect_logic_get_state() != PROTOCOL_CONNECTED) {
         ESP_LOGE(TAG, "Protocol connection to the camera failed. Current connection state: %d", connect_logic_get_state());
         return NULL;
     }

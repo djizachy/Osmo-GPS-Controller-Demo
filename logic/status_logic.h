@@ -11,6 +11,8 @@ extern uint8_t current_fps_idx;
 extern uint8_t current_eis_mode;
 extern bool camera_status_initialized;
 
+bool is_camera_recording();
+
 void print_camera_status();
 
 int subscript_camera_status(uint8_t push_mode, uint8_t push_freq);

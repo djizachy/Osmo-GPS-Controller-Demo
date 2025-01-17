@@ -18,6 +18,13 @@ uint8_t current_fps_idx = 0;
 uint8_t current_eis_mode = 0;
 bool camera_status_initialized = false;
 
+bool is_camera_recording() {
+    if ((current_camera_status == CAMERA_STATUS_PHOTO_OR_RECORDING || current_camera_status == CAMERA_STATUS_PRE_RECORDING) && camera_status_initialized) {
+        return true;
+    }
+    return false;
+}
+
 void print_camera_status() {
     if (!camera_status_initialized) {
         ESP_LOGW(TAG, "Camera status has not been initialized.");
@@ -30,7 +37,7 @@ void print_camera_status() {
     const char *fps_str = fps_idx_to_string((fps_idx_t)current_fps_idx);
     const char *eis_str = eis_mode_to_string((eis_mode_t)current_eis_mode);
 
-    ESP_LOGI(TAG, "Current Camera Status:");
+    ESP_LOGI(TAG, "Current camera status has changed:");
     ESP_LOGI(TAG, "  Mode: %s", mode_str);
     ESP_LOGI(TAG, "  Status: %s", status_str);
     ESP_LOGI(TAG, "  Resolution: %s", resolution_str);
@@ -42,7 +49,7 @@ int subscript_camera_status(uint8_t push_mode, uint8_t push_freq) {
 
     ESP_LOGI(TAG, "Subscribing to Camera Status with push_mode: %d, push_freq: %d", push_mode, push_freq);
 
-    if (connect_logic_get_state() != CONNECT_STATE_PROTOCOL_CONNECTED) {
+    if (connect_logic_get_state() != PROTOCOL_CONNECTED) {
         ESP_LOGE(TAG, "Protocol connection to the camera failed. Current connection state: %d", connect_logic_get_state());
         return -1;
     }

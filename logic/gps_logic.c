@@ -36,6 +36,13 @@ static GPS_Data_t GPS_Data = {
     .Velocity_Descend = 0.0
 };
 
+bool is_gps_found(void) {
+    if (GPS_Data.Status == 1) {
+        return true;
+    }
+    return false;
+}
+
 static double Previous_Altitude = 0.0;
 static double Previous_Time = 0.0;
 
@@ -376,7 +383,7 @@ static void rx_task_GPS(void *arg)
             // 打印解析后的GPS数据
             // print_gps_data();
 
-            if(connect_logic_get_state() == CONNECT_STATE_PROTOCOL_CONNECTED && GPS_Data.Status == 1){
+            if(connect_logic_get_state() == PROTOCOL_CONNECTED && is_gps_found()){
                 gps_push_data();
             }
         }
@@ -391,11 +398,4 @@ void initSendGpsDataToCameraTask(void) {
     initUartGps();
     xTaskCreate(rx_task_GPS, "uart_rx_task_GPS", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);
     ESP_LOGI("MAIN", "uart_rx_task_GPS are running\n");
-}
-
-bool is_gps_found(void) {
-    if (GPS_Data.Status == 1) {
-        return true;
-    }
-    return false;
 }

@@ -564,7 +564,7 @@ void receive_camera_notify_handler(const uint8_t *raw_data, size_t raw_data_leng
     if (raw_data[0] == 0xAA || raw_data[0] == 0xaa) {
         ESP_LOGI(TAG, "Notification received, attempting to parse...");
         ESP_LOG_BUFFER_HEX(TAG, raw_data, raw_data_length);  // 打印通知内容
-
+        
         // 定义解析结果结构体
         protocol_frame_t frame;
         memset(&frame, 0, sizeof(frame));

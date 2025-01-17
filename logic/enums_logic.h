@@ -65,4 +65,15 @@ typedef enum {
 } eis_mode_t;
 const char* eis_mode_to_string(eis_mode_t mode);
 
+typedef enum {
+    PUSH_MODE_OFF = 0,                    // 关闭
+    PUSH_MODE_SINGLE,                     // 单次
+    PUSH_MODE_PERIODIC,                   // 周期
+    PUSH_MODE_PERIODIC_WITH_STATE_CHANGE  // 周期 + 状态变化推送
+} push_mode_t;
+
+typedef enum {
+    PUSH_FREQ_10HZ = 1                    // 10Hz
+} push_freq_t;
+
 #endif

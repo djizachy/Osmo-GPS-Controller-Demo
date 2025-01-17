@@ -55,12 +55,11 @@ typedef void (*connect_logic_state_callback_t)(void);
 /**
  * @brief BLE 客户端初始化
  *
- * @param remote_name 期望连接的远程设备名称
  * @return esp_err_t
  *         - ESP_OK on success
  *         - Others on failure
  */
-esp_err_t ble_init(const char *remote_name);
+esp_err_t ble_init();
 
 /**
  * @brief 连接到指定名称的设备（若已在扫描中，会自动在扫描到该设备时连接）

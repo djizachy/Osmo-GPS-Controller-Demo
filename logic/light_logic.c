@@ -11,12 +11,12 @@
 #define TAG "LOGIC_LIGHT"
 
 #define LED_GPIO 8                // 使用 GPIO 来控制 RGB LED
-#define LED_STRIP_LENGTH 1        // 设定LED数量为1
+#define LED_STRIP_LENGTH 1        // 设定 LED 数量为1
 
 // 创建一个 led_strip 句柄
 static led_strip_handle_t led_strip = NULL;
 
-// 初始化 RGB LED
+// 初始化 RGB LED 相关配置和设置
 static void init_rgb_led(void) {
     // 配置 LED
     led_strip_config_t strip_config = {
@@ -37,13 +37,13 @@ static void init_rgb_led(void) {
     ESP_LOGI(TAG, "RGB LED initialized");
 }
 
-// 设置RGB颜色
+// 设置 RGB LED 的颜色
 static void set_rgb_color(uint8_t red, uint8_t green, uint8_t blue) {
     led_strip_set_pixel(led_strip, 0, red, green, blue);  // 设置LED的颜色
     led_strip_refresh(led_strip); // 刷新 LED Strip 以更新颜色
 }
 
-// 在 light_logic.c 文件中定义全局变量
+// 初始化 RGB LED 状态所需的变量
 uint8_t led_red = 0, led_green = 0, led_blue = 0;  // RGB 值
 bool led_blinking = false;                         // 是否闪烁
 bool current_led_on = false;                       // LED 当前状态（开或关）
@@ -57,57 +57,56 @@ static void update_led_state() {
     // 打印当前状态
     // ESP_LOGI(TAG, "Current connect state: %d, Camera recording: %d, GPS connected: %d", current_connect_state, current_camera_recording, current_gps_connected);
 
-    // 默认不闪烁
-    led_blinking = false;
+    led_blinking = false;  // 默认 LED 不闪烁
 
     switch (current_connect_state) {
         case BLE_NOT_INIT:
-            led_red = 255;
+            led_red = 13;      // 255 * 0.05
             led_green = 0;
-            led_blue = 0;  // 红色
+            led_blue = 0;      // 红色表示蓝牙未初始化
             break;
 
         case BLE_INIT_COMPLETE:
-            led_red = 255;
-            led_green = 255;
-            led_blue = 0;  // 黄色
+            led_red = 13;      // 255 * 0.05
+            led_green = 13;    // 255 * 0.05
+            led_blue = 0;      // 黄色表示蓝牙初始化完成
             break;
 
         case BLE_SEARCHING:
             led_blinking = true;
             led_red = 0;
             led_green = 0;
-            led_blue = 255;  // 蓝色闪烁
+            led_blue = 13;     // 255 * 0.05，蓝色闪烁表示蓝牙正在搜索
             break;
 
         case BLE_CONNECTED:
             led_red = 0;
             led_green = 0;
-            led_blue = 255;  // 蓝色
+            led_blue = 13;     // 255 * 0.05，蓝色表示蓝牙已连接
             break;
 
         case PROTOCOL_CONNECTED:
             if (current_camera_recording) {
                 if (current_gps_connected) {
                     led_blinking = true;
-                    led_red = 128;
+                    led_red = 6;       // 128 * 0.05
                     led_green = 0;
-                    led_blue = 128;  // 紫色闪烁
+                    led_blue = 6;      // 紫色闪烁表示正在录制且 GPS 已连接
                 } else {
                     led_blinking = true;
                     led_red = 0;
-                    led_green = 255;
-                    led_blue = 0;  // 绿色闪烁
+                    led_green = 13;    // 255 * 0.05
+                    led_blue = 0;      // 绿色闪烁表示正在录制但 GPS 未连接
                 }
             } else {
                 if (current_gps_connected) {
-                    led_red = 128;
+                    led_red = 6;       // 128 * 0.05
                     led_green = 0;
-                    led_blue = 128;  // 紫色
+                    led_blue = 6;      // 紫色表示未录制但 GPS 已连接
                 } else {
                     led_red = 0;
-                    led_green = 255;
-                    led_blue = 0;  // 绿色
+                    led_green = 13;    // 255 * 0.05
+                    led_blue = 0;      // 绿色表示未录制且 GPS 未连接
                 }
             }
             break;
@@ -120,12 +119,12 @@ static void update_led_state() {
     }
 }
 
-// 收集系统状态，设置灯参数的回调函数
+// 定时器回调函数，用于定期更新 LED 状态
 static void led_state_timer_callback(TimerHandle_t xTimer) {
     update_led_state();
 }
 
-// 实现灯闪烁的回调函数
+// 定时器回调函数，用于实现 LED 闪烁效果
 static void led_blink_timer_callback(TimerHandle_t xTimer) {
     if (led_blinking) {
         // 如果在闪烁状态，且当前 LED 开启，关闭 LED
@@ -142,11 +141,12 @@ static void led_blink_timer_callback(TimerHandle_t xTimer) {
     }
 }
 
+// 初始化灯光逻辑，包括 LED 的状态更新和闪烁定时器
 int init_light_logic() {
     init_rgb_led();
     
-    // 创建一个定时器，每 100ms 执行一次 update_led_state
-    TimerHandle_t led_state_timer = xTimerCreate("led_state_timer", pdMS_TO_TICKS(100), pdTRUE, (void *)0, led_state_timer_callback);
+    // 创建一个定时器，每 500ms 执行一次 update_led_state
+    TimerHandle_t led_state_timer = xTimerCreate("led_state_timer", pdMS_TO_TICKS(500), pdTRUE, (void *)0, led_state_timer_callback);
 
     if (led_state_timer != NULL) {
         xTimerStart(led_state_timer, 0);
@@ -157,7 +157,7 @@ int init_light_logic() {
     }
 
     // 创建另一个定时器，用来控制 LED 闪烁的状态（开关）
-    TimerHandle_t led_blink_timer = xTimerCreate("led_blink_timer", pdMS_TO_TICKS(800), pdTRUE, (void *)0, led_blink_timer_callback);
+    TimerHandle_t led_blink_timer = xTimerCreate("led_blink_timer", pdMS_TO_TICKS(500), pdTRUE, (void *)0, led_blink_timer_callback);
 
     if (led_blink_timer != NULL) {
         xTimerStart(led_blink_timer, 0);

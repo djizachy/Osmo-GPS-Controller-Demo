@@ -22,7 +22,9 @@ const data_descriptor_t data_descriptors[] = {
     // 相机状态订阅
     {0x1D, 0x05, (data_creator_func_t)camera_status_subscription_creator, NULL},
     // 相机状态推送
-    {0x1D, 0x02, NULL, (data_parser_func_t)camera_status_push_data_parser}
+    {0x1D, 0x02, NULL, (data_parser_func_t)camera_status_push_data_parser},
+    // 按键上报
+    {0x00, 0x11, (data_creator_func_t)key_report_creator, (data_parser_func_t)key_report_parser},
 };
 const size_t DATA_DESCRIPTORS_COUNT = sizeof(data_descriptors) / sizeof(data_descriptors[0]);
 
@@ -431,4 +433,66 @@ int camera_status_push_data_parser(const uint8_t *data, size_t data_length, void
         ESP_LOGE(TAG, "camera_status_push_data_parser: Response frames are not supported");
         return -1;
     }
+}
+
+uint8_t* key_report_creator(const void *structure, size_t *data_length, uint8_t cmd_type) {
+    if (structure == NULL || data_length == NULL) {
+        ESP_LOGE(TAG, "Invalid input: structure or data_length is NULL");
+        return NULL;
+    }
+
+    uint8_t *data = NULL;
+
+    if ((cmd_type & 0x20) == 0) {
+        const key_report_command_frame_t *command_frame = 
+            (const key_report_command_frame_t *)structure;
+
+        *data_length = sizeof(key_report_command_frame_t);
+        
+        ESP_LOGI(TAG, "Data length calculated for key_report_command_frame: %zu", *data_length);
+
+        data = (uint8_t *)malloc(*data_length);
+        if (data == NULL) {
+            ESP_LOGE(TAG, "Memory allocation failed in key_report_creator");
+            return NULL;
+        }
+
+        ESP_LOGI(TAG, "Memory allocation succeeded for command frame, copying data...");
+        
+        memcpy(data, command_frame, *data_length);
+    } else {
+        ESP_LOGE(TAG, "Response frames are not supported in key_report_creator");
+        return NULL;
+    }
+
+    return data;
+}
+
+int key_report_parser(const uint8_t *data, size_t data_length, void *structure_out, uint8_t cmd_type) {
+    if (data == NULL || structure_out == NULL) {
+        ESP_LOGE(TAG, "key_report_parser: NULL input detected");
+        return -1;
+    }
+
+    ESP_LOGI(TAG, "Parsing Key Report Response data, received data length: %zu", data_length);
+
+    if ((cmd_type & 0x20) == 0) {
+        ESP_LOGE(TAG, "key_report_parser: Only response frames are supported");
+        return -1;
+    }
+
+    if (data_length < sizeof(key_report_response_frame_t)) {
+        ESP_LOGE(TAG, "key_report_parser: Data length too short for response frame. Expected: %zu, Got: %zu",
+                 sizeof(key_report_response_frame_t), data_length);
+        return -1;
+    }
+
+    const key_report_response_frame_t *response = (const key_report_response_frame_t *)data;
+    key_report_response_frame_t *output_response = (key_report_response_frame_t *)structure_out;
+
+    output_response->ret_code = response->ret_code;
+
+    ESP_LOGI(TAG, "Key Report Response parsed successfully. ret_code: %u", output_response->ret_code);
+
+    return 0;
 }

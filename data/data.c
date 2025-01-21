@@ -41,7 +41,9 @@ static SemaphoreHandle_t s_map_mutex = NULL;
 /* 定时器句柄 */
 static TimerHandle_t cleanup_timer = NULL;
 
-/* 初始化 seq_entries */
+/**
+ * @brief 初始化 seq_entries，将所有条目标记为未使用
+ */
 static void reset_entries(void) {
     for (int i = 0; i < MAX_SEQ_ENTRIES; i++) {
         s_entries[i].in_use = false;
@@ -62,7 +64,12 @@ static void reset_entries(void) {
     }
 }
 
-/* 查找指定 seq 的条目 */
+/**
+ * @brief 查找指定 seq 的条目
+ * 
+ * @param seq 需要查找的 seq 值
+ * @return entry_t* 找到的条目指针，未找到则返回 NULL
+ */
 static entry_t* find_entry_by_seq(uint16_t seq) {
     for (int i = 0; i < MAX_SEQ_ENTRIES; i++) {
         if (s_entries[i].in_use && s_entries[i].is_seq_based && s_entries[i].seq == seq) {
@@ -73,7 +80,13 @@ static entry_t* find_entry_by_seq(uint16_t seq) {
     return NULL;
 }
 
-/* 查找指定 cmd_set 和 cmd_id 的条目 */
+/**
+ * @brief 查找指定 cmd_set 和 cmd_id 的条目
+ * 
+ * @param cmd_set 命令集
+ * @param cmd_id 命令 ID
+ * @return entry_t* 找到的条目指针，未找到则返回 NULL
+ */
 static entry_t* find_entry_by_cmd_id(uint16_t cmd_set, uint16_t cmd_id) {
     for (int i = 0; i < MAX_SEQ_ENTRIES; i++) {
         if (s_entries[i].in_use && !s_entries[i].is_seq_based && 
@@ -85,7 +98,11 @@ static entry_t* find_entry_by_cmd_id(uint16_t cmd_set, uint16_t cmd_id) {
     return NULL;
 }
 
-/* 释放一个条目 */
+/**
+ * @brief 释放一个条目
+ * 
+ * @param entry 要释放的条目指针
+ */
 static void free_entry(entry_t *entry) {
     if (entry) {
         entry->in_use = false;
@@ -106,7 +123,12 @@ static void free_entry(entry_t *entry) {
     }
 }
 
-/* 分配一个空闲的 entry，基于 seq 或 cmd */
+/**
+ * @brief 分配一个空闲的 entry，基于 seq
+ * 
+ * @param seq 帧序列号
+ * @return entry_t* 返回分配的条目指针，如果失败则返回 NULL
+ */
 static entry_t* allocate_entry_by_seq(uint16_t seq) {
     // 首先检查是否已存在相同 seq 的条目
     entry_t *existing_entry = find_entry_by_seq(seq);
@@ -172,6 +194,13 @@ static entry_t* allocate_entry_by_seq(uint16_t seq) {
     return NULL;
 }
 
+/**
+ * @brief 分配一个空闲的 entry，基于 cmd_set 和 cmd_id
+ * 
+ * @param cmd_set 命令集
+ * @param cmd_id 命令 ID
+ * @return entry_t* 返回分配的条目指针，如果失败则返回 NULL
+ */
 static entry_t* allocate_entry_by_cmd(uint8_t cmd_set, uint8_t cmd_id) {
     // 首先检查是否已存在相同 cmd_set 和 cmd_id 的条目
     entry_t *existing_entry = find_entry_by_cmd_id(cmd_set, cmd_id);
@@ -242,7 +271,12 @@ static entry_t* allocate_entry_by_cmd(uint8_t cmd_set, uint8_t cmd_id) {
     return NULL;
 }
 
-/* 定时清理函数 */
+/**
+ * @brief 定时清理函数
+ * 
+ * 清理过期的条目，删除未使用的条目。
+ * 定期运行清理任务，释放不再需要的内存。
+ */
 static void cleanup_old_entries(TimerHandle_t xTimer) {
     TickType_t current_time = xTaskGetTickCount();
     if (xSemaphoreTake(s_map_mutex, pdMS_TO_TICKS(100)) != pdTRUE) {
@@ -262,7 +296,11 @@ static void cleanup_old_entries(TimerHandle_t xTimer) {
     xSemaphoreGive(s_map_mutex);
 }
 
-/* 数据层初始化 */
+/**
+ * @brief 数据层初始化
+ * 
+ * 初始化数据层，包括创建互斥锁、清空条目、启动定时清理任务等。
+ */
 void data_init(void) {
     // 初始化互斥锁
     s_map_mutex = xSemaphoreCreateMutex();
@@ -286,11 +324,26 @@ void data_init(void) {
     ESP_LOGI(TAG, "Data layer initialized successfully");
 }
 
+/**
+ * @brief 检查数据层是否已初始化
+ * 
+ * @return bool 如果数据层已初始化，返回 true；否则返回 false
+ */
 bool is_data_layer_initialized(void) {
     return data_layer_initialized;
 }
 
-/* 发送数据帧（有响应） */
+/**
+ * @brief 发送数据帧（有响应）
+ * 
+ * 通过 BLE 向设备发送数据帧，并等待响应。
+ * 
+ * @param seq 数据帧的序列号
+ * @param raw_data 需要发送的数据
+ * @param raw_data_length 数据长度
+ * 
+ * @return esp_err_t 成功返回 ESP_OK，失败返回错误码
+ */
 esp_err_t data_write_with_response(uint16_t seq, const uint8_t *raw_data, size_t raw_data_length) {
     if (!raw_data || raw_data_length == 0) {
         ESP_LOGE(TAG, "Invalid data or length");
@@ -332,7 +385,17 @@ esp_err_t data_write_with_response(uint16_t seq, const uint8_t *raw_data, size_t
     return ESP_OK;
 }
 
-/* 发送数据帧（无响应） */
+/**
+ * @brief 发送数据帧（无响应）
+ * 
+ * 通过 BLE 向设备发送数据帧，且不等待响应。
+ * 
+ * @param seq 数据帧的序列号
+ * @param raw_data 需要发送的数据
+ * @param raw_data_length 数据长度
+ * 
+ * @return esp_err_t 成功返回 ESP_OK，失败返回错误码
+ */
 esp_err_t data_write_without_response(uint16_t seq, const uint8_t *raw_data, size_t raw_data_length) {
     if (!raw_data || raw_data_length == 0) {
         ESP_LOGE(TAG, "Invalid raw_data or raw_data_length");
@@ -381,7 +444,18 @@ esp_err_t data_write_without_response(uint16_t seq, const uint8_t *raw_data, siz
     return ESP_OK;
 }
 
-/* 等待特定 seq 的解析结果 */
+/**
+ * @brief 等待特定 seq 的解析结果
+ * 
+ * 等待一个特定 seq 的解析结果，并返回给调用者。
+ * 
+ * @param seq 数据帧的序列号
+ * @param timeout_ms 等待的超时时间（毫秒）
+ * @param out_result 返回解析结果
+ * @param out_result_length 返回解析结果的长度
+ * 
+ * @return esp_err_t 成功返回 ESP_OK，失败返回错误码
+ */
 esp_err_t data_wait_for_result_by_seq(uint16_t seq, int timeout_ms, void **out_result, size_t *out_result_length) {
     if (!out_result || !out_result_length) {
         ESP_LOGE(TAG, "out_result or out_result_length is NULL");
@@ -463,7 +537,20 @@ esp_err_t data_wait_for_result_by_seq(uint16_t seq, int timeout_ms, void **out_r
     }
 }
 
-/* 等待特定 cmd_set 和 cmd_id 的解析结果，并返回 seq */
+/**
+ * @brief 等待特定 cmd_set 和 cmd_id 的解析结果，并返回 seq
+ * 
+ * 等待一个特定 cmd_set 和 cmd_id 的解析结果，并返回其对应的 seq 值。
+ * 
+ * @param cmd_set 命令集
+ * @param cmd_id 命令 ID
+ * @param timeout_ms 等待的超时时间（毫秒）
+ * @param out_seq 返回的 seq 值
+ * @param out_result 返回解析结果
+ * @param out_result_length 返回解析结果的长度
+ * 
+ * @return esp_err_t 成功返回 ESP_OK，失败返回错误码
+ */
 esp_err_t data_wait_for_result_by_cmd(uint8_t cmd_set, uint8_t cmd_id, int timeout_ms, uint16_t *out_seq, void **out_result, size_t *out_result_length) {
     if (!out_result || !out_seq || !out_result_length) {
         ESP_LOGE(TAG, "out_result, out_seq or out_result_length is NULL");
@@ -545,15 +632,26 @@ esp_err_t data_wait_for_result_by_cmd(uint8_t cmd_set, uint8_t cmd_id, int timeo
 }
 
 /**
- * @brief 注册状态更新回调
- * @param callback 回调函数指针
+ * @brief 注册相机状态更新回调函数
+ * 
+ * 此函数用于注册一个相机状态更新的回调函数。注册后，当接收到特定的通知时，会调用该回调函数同步相机最新状态。
+ * 
+ * @param callback 回调函数指针，指向用户定义的回调函数
  */
 static camera_status_update_cb_t status_update_callback = NULL;
 void data_register_status_update_callback(camera_status_update_cb_t callback) {
     status_update_callback = callback;
 }
 
-/* Notify 回调函数，合并到数据层 */
+/**
+ * @brief 处理相机通知并解析数据（回调函数）
+ * 
+ * 该函数处理从相机收到的通知数据。它首先检查通知帧是否有效（以 0xAA 开头），然后解析通知帧中的数据段。
+ * 如果解析成功，会将结果保存到对应的条目中，并通过信号量唤醒等待的任务。如果没有找到对应的条目，则会创建新的条目来存储解析结果。
+ * 
+ * @param raw_data 原始通知数据
+ * @param raw_data_length 数据长度
+ */
 void receive_camera_notify_handler(const uint8_t *raw_data, size_t raw_data_length) {
     if (!raw_data || raw_data_length < 2) {
         ESP_LOGW(TAG, "Notify data is too short or null, skip parse");
@@ -631,9 +729,19 @@ void receive_camera_notify_handler(const uint8_t *raw_data, size_t raw_data_leng
             xSemaphoreGive(s_map_mutex);
         }
 
-        // 特殊回调处理
+        // 相机主动推送状态处理
         if (actual_cmd_set == 0x1D && actual_cmd_id == 0x02 && status_update_callback) {
-            status_update_callback(parse_result);
+            // 为状态更新回调创建新的内存副本
+            void *status_copy = NULL;
+            if (parse_result != NULL && parse_result_length > 0) {
+                status_copy = malloc(parse_result_length);
+                if (status_copy != NULL) {
+                    memcpy(status_copy, parse_result, parse_result_length);
+                    status_update_callback(status_copy);
+                } else {
+                    ESP_LOGE(TAG, "Failed to allocate memory for status update callback");
+                }
+            }
         }
     } else {
         // ESP_LOGW(TAG, "Received frame does not start with 0xAA, ignoring...");

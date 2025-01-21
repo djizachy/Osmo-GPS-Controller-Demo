@@ -15,34 +15,75 @@
 
 static connect_state_t connect_state = BLE_NOT_INIT;
 
+/**
+ * @brief 获取当前连接状态
+ * 
+ * @return connect_state_t 返回当前的连接状态
+ */
 connect_state_t connect_logic_get_state(void) {
     return connect_state;
 }
 
+/**
+ * @brief 处理相机断开连接（回调函数）
+ * 
+ * 根据当前连接状态进行相应的操作，并将连接状态重置为 BLE 初始化完成（BLE_INIT_COMPLETE）。
+ */
 void receive_camera_disconnect_handler() {
     switch (connect_state) {
+        case BLE_SEARCHING:
+            break;
         case BLE_INIT_COMPLETE:
             ESP_LOGI(TAG, "Already in DISCONNECTED state.");
             break;
+        case BLE_DISCONNECTING: {
+            ESP_LOGI(TAG, "Normal disconnection process.");
+            // 正常断开也需要重置状态
+            connect_state = BLE_INIT_COMPLETE;
+            camera_status_initialized = false;
+            ESP_LOGI(TAG, "Current state: DISCONNECTED.");
+            break;
+        }
         case BLE_CONNECTED:
-            ESP_LOGI(TAG, "Transitioning from BLE_CONNECTED to DISCONNECTED.");
-            break;
         case PROTOCOL_CONNECTED:
-            ESP_LOGI(TAG, "Transitioning from PROTOCOL_CONNECTED to DISCONNECTED.");
+        default: {
+            ESP_LOGW(TAG, "Unexpected disconnection from state: %d, attempting reconnection...", connect_state);
+            
+            // 尝试重连一次
+            bool reconnected = false;
+            ESP_LOGI(TAG, "Reconnection attempt...");
+            if (ble_reconnect() == ESP_OK) {
+                // 等待重连结果
+                for (int j = 0; j < 30; j++) { // 等待3秒
+                    if (s_ble_profile.connection_status.is_connected) {
+                        ESP_LOGI(TAG, "Reconnection successful");
+                        reconnected = true;
+                        return;  // 重连成功，直接返回
+                    }
+                    vTaskDelay(pdMS_TO_TICKS(100));
+                }
+            }
+
+            if (!reconnected) {
+                ESP_LOGE(TAG, "Reconnection failed after 1 attempts");
+                // 重连失败，执行断开逻辑
+                connect_state = BLE_INIT_COMPLETE;
+                camera_status_initialized = false;
+                ble_disconnect();
+                ESP_LOGI(TAG, "Current state: DISCONNECTED.");
+            }
             break;
-        default:
-            ESP_LOGE(TAG, "Unknown state transition from %d to DISCONNECTED.", connect_state);
-            break;
+        }
     }
-
-    // 修改连接状态为未连接
-    connect_state = BLE_INIT_COMPLETE;
-    // status_logic 中要设置为未初始化相机参数
-    camera_status_initialized = false;
-
-    ESP_LOGI(TAG, "Current state: DISCONNECTED.");
 }
 
+/**
+ * @brief 初始化 BLE 连接
+ * 
+ * 初始化 BLE，并设置状态为 BLE 初始化完成（BLE_INIT_COMPLETE）。
+ * 
+ * @return int 成功返回 0，失败返回 -1
+ */
 int connect_logic_ble_init() {
     esp_err_t ret;
 
@@ -58,16 +99,24 @@ int connect_logic_ble_init() {
     return 0;
 }
 
+/**
+ * @brief 连接到 BLE 设备
+ * 
+ * 执行以下步骤：设置回调、启动扫描并尝试连接、等待连接完成和特征句柄发现。
+ * 如果连接失败，会返回错误并重置连接状态。
+ * 
+ * @return int 成功返回 0，失败返回 -1
+ */
 int connect_logic_ble_connect() {
     connect_state = BLE_SEARCHING;
 
     esp_err_t ret;
 
-    /* 2. 设置一个全局 Notify 回调，用于接收远端数据并进行协议解析 */
+    /* 1. 设置一个全局 Notify 回调，用于接收远端数据并进行协议解析 */
     ble_set_notify_callback(receive_camera_notify_handler);
     ble_set_state_callback(receive_camera_disconnect_handler);
 
-    /* 3. 开始扫描并尝试连接 */
+    /* 2. 开始扫描并尝试连接 */
     ret = ble_start_scanning_and_connect();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to start scanning and connect, error: 0x%x", ret);
@@ -75,10 +124,10 @@ int connect_logic_ble_connect() {
         return -1;
     }
 
-    /* 4. 等待最多 30 秒以确保 BLE 连接成功 */
+    /* 3. 等待最多 5 秒以确保 BLE 连接成功 */
     ESP_LOGI(TAG, "Waiting up to 30s for BLE to connect...");
     bool connected = false;
-    for (int i = 0; i < 300; i++) { // 300 * 100ms = 30s
+    for (int i = 0; i < 50; i++) { // 50 * 100ms = 5s
         if (s_ble_profile.connection_status.is_connected) {
             ESP_LOGI(TAG, "BLE connected successfully");
             connected = true;
@@ -92,7 +141,7 @@ int connect_logic_ble_connect() {
         return -1;
     }
 
-    /* 5. 等待特征句柄查找完成（最多等待30秒） */
+    /* 4. 等待特征句柄查找完成（最多等待30秒） */
     ESP_LOGI(TAG, "Waiting up to 30s for characteristic handles discovery...");
     bool handles_found = false;
     for (int i = 0; i < 300; i++) { // 300 * 100ms = 30s
@@ -110,7 +159,7 @@ int connect_logic_ble_connect() {
         return -1;
     }
 
-    /* 6. 注册通知 */
+    /* 5. 注册通知 */
     ret = ble_register_notify(s_ble_profile.conn_id, s_ble_profile.notify_char_handle);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to register notify, error: %s", esp_err_to_name(ret));
@@ -120,19 +169,31 @@ int connect_logic_ble_connect() {
 
     // 更新状态为 BLE 已连接
     connect_state = BLE_CONNECTED;
+
     // 延迟展示氛围灯
-    vTaskDelay(pdMS_TO_TICKS(3000));
+    vTaskDelay(pdMS_TO_TICKS(2000));
     ESP_LOGI(TAG, "BLE connect successfully");
     return 0;
 }
 
+/**
+ * @brief 断开 BLE 连接
+ * 
+ * 尝试断开与 BLE 设备的连接。
+ * 
+ * @return int 成功返回 0，失败返回 -1
+ */
 int connect_logic_ble_disconnect(void) {
+    connect_state_t old_state = connect_state;
+    connect_state = BLE_DISCONNECTING;
+    
     ESP_LOGI(TAG, "Disconnecting camera");
 
     // 调用 BLE 层的 ble_disconnect 函数
     esp_err_t ret = ble_disconnect();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to disconnect camera, BLE error: %s", esp_err_to_name(ret));
+        connect_state = old_state;
         return -1;
     }
 
@@ -143,6 +204,12 @@ int connect_logic_ble_disconnect(void) {
 /**
  * @brief 协议连接函数
  * 
+ * 该函数负责建立协议连接，包含以下步骤：
+ * 1. 向相机发送连接请求命令。
+ * 2. 等待相机的响应并进行验证。
+ * 3. 根据相机返回的命令发送连接应答。
+ * 4. 设置连接状态为协议连接。
+ * 
  * @param device_id 设备ID
  * @param mac_addr_len MAC地址长度
  * @param mac_addr 指向MAC地址的指针
@@ -150,6 +217,7 @@ int connect_logic_ble_disconnect(void) {
  * @param verify_mode 验证模式
  * @param verify_data 验证数据
  * @param camera_reserved 相机保留字段
+ * 
  * @return int 成功返回 0，失败返回 -1
  */
 int connect_logic_protocol_connect(uint32_t device_id, uint8_t mac_addr_len, const int8_t *mac_addr,
@@ -178,7 +246,7 @@ int connect_logic_protocol_connect(uint32_t device_id, uint8_t mac_addr_len, con
     if (result.structure == NULL) {
         // 这里直接去 esp_err_t ret = data_wait_for_result_by_cmd(0x00, 0x19, 30000, &received_seq, &parse_result, &parse_result_length);
         // 如果 != OK 说明确实没有收到消息，超时
-        // 否则 GOTO 到下面指定注释的地方
+        // 否则 GOTO 到 wait_for_camera_command 标识
         void *parse_result = NULL;
         size_t parse_result_length = 0;
         uint16_t received_seq = 0;
@@ -206,7 +274,6 @@ int connect_logic_protocol_connect(uint32_t device_id, uint8_t mac_addr_len, con
     free(response);
 
     // STEP2: 等待相机发送连接请求
-    // GOTO 标识
 wait_for_camera_command:
     void *parse_result = NULL;
     size_t parse_result_length = 0;

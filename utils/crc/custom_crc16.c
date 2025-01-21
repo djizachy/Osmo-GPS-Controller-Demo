@@ -17,8 +17,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-
-
 /**
  * Static table used for the table_driven implementation.
  */
@@ -57,7 +55,6 @@ static const crc16_t crc16_table[256] = {
     0x8201, 0x42c0, 0x4380, 0x8341, 0x4100, 0x81c1, 0x8081, 0x4040
 };
 
-
 crc16_t crc16_update(crc16_t crc, const void *data, size_t data_len)
 {
     const unsigned char *d = (const unsigned char *)data;
@@ -70,76 +67,6 @@ crc16_t crc16_update(crc16_t crc, const void *data, size_t data_len)
     }
     return crc & 0xffff;
 }
-
-
-
-// #include <stdio.h>
-// #include <getopt.h>
-// #include <stdbool.h>
-// #include <string.h>
-
-// static uint8_t str[] = {
-// 	0xAA, 0x1A, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00,
-// 	0x22, 0x11, 
-// };
-// static bool verbose = false;
-
-
-// static int get_config(int argc, char *argv[])
-// {
-//     int c;
-//     int option_index;
-//     static struct option long_options[] = {
-//         {"verbose",         0, 0, 'v'},
-//         {0, 0, 0, 0}
-//     };
-
-//     while (1) {
-//         option_index = 0;
-
-//         c = getopt_long(argc, argv, "w:p:n:i:u:o:s:vt", long_options, &option_index);
-//         if (c == -1)
-//             break;
-
-//         switch (c) {
-//             case 0:
-//                 printf("option %s", long_options[option_index].name);
-//                 if (optarg)
-//                     printf(" with arg %s", optarg);
-//                 printf("\n");
-//                 break;
-//             case 'v':
-//                 verbose = true;
-//                 break;
-//             case '?':
-//                 return -1;
-//             case ':':
-//                 fprintf(stderr, "missing argument to option %c\n", c);
-//                 return -1;
-//             default:
-//                 fprintf(stderr, "unhandled option %c\n", c);
-//                 return -1;
-//         }
-//     }
-
-//     return 0;
-// }
-
-
-// static void print_params(void)
-// {
-//     char format[20];
-
-//     snprintf(format, sizeof(format), "%%-16s = 0x%%0%dllx\n", (unsigned int)(16 + 3) / 4);
-//     printf("%-16s = %d\n", "width", (unsigned int)16);
-//     printf(format, "poly", (unsigned long long int)0x8005);
-//     printf("%-16s = %s\n", "reflect_in", "true");
-//     printf(format, "xor_in", (unsigned long long int)0xc55c);
-//     printf("%-16s = %s\n", "reflect_out", "true");
-//     printf(format, "xor_out", (unsigned long long int)0x0000);
-//     printf(format, "crc_mask", (unsigned long long int)0xffff);
-//     printf(format, "msb_mask", (unsigned long long int)0x8000);
-// }
 
 uint16_t calculate_crc16(const uint8_t *data, size_t length) {
     crc16_t crc = crc_init();

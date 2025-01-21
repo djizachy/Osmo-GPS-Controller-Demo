@@ -30,9 +30,6 @@ typedef struct {
     double Longitude;         // 经度
     char Lon_Indicator;       // E/W
 
-    // 状态
-    uint8_t Status;           // 1: 定位成功, 0: 定位失败
-
     // 其他信息
     double Speed_knots;       // 地面速度 (节)
     double Course;            // 航向 (度)
@@ -43,10 +40,21 @@ typedef struct {
     double Velocity_North;    // 向北速度 (米/秒)
     double Velocity_East;     // 向东速度 (米/秒)
     double Velocity_Descend;  // 下降速度 (米/秒)
+
+    // 状态
+    uint8_t Status;          // 1: RMC和GGA都有效, 0: 其他情况
+    uint8_t RMC_Valid;       // RMC 数据是否有效
+    uint8_t GGA_Valid;       // GGA 数据是否有效
+    double RMC_Latitude;     // RMC 的纬度
+    double RMC_Longitude;    // RMC 的经度
+    double GGA_Latitude;     // GGA 的纬度
+    double GGA_Longitude;    // GGA 的经度
 } GPS_Data_t;
 
 void initSendGpsDataToCameraTask(void);
 
 bool is_gps_found(void);
+
+bool is_current_gps_data_valid(void);
 
 #endif

@@ -10,43 +10,84 @@
 
 #define TAG "LOGIC_GPS"
 
+// 定义缓冲区用于存储接收到的数据
 static char buff_t[RX_BUF_SIZE]={0};
 
-static GPS_Data_t GPS_Data = {
-    .Year = 0,
-    .Month = 0,
-    .Day = 0,
-    .Hour = 0,
-    .Minute = 0,
-    .Second = 0.0,
+// 初始化 GPS 数据结构
+static GPS_Data_t GPS_Data;
 
-    .Latitude = 0.0,
-    .Lat_Indicator = 'N',
-    .Longitude = 0.0,
-    .Lon_Indicator = 'E',
+// GPS连续无效次数计数器
+static uint8_t gps_invalid_count = 0;
 
-    .Status = 0,
-    .Speed_knots = 0.0,
-    .Course = 0.0,
-    .Altitude = 0.0,
-    .Num_Satellites = 0,
+/**
+ * @brief 初始化 GPS 数据结构
+ * 
+ * 将 GPS 数据结构的所有字段重置为初始值。
+ */
+static void init_gps_data(void) {
+    GPS_Data.Year = 0;
+    GPS_Data.Month = 0;
+    GPS_Data.Day = 0;
+    GPS_Data.Hour = 0;
+    GPS_Data.Minute = 0;
+    GPS_Data.Second = 0.0;
 
-    .Velocity_North = 0.0,
-    .Velocity_East = 0.0,
-    .Velocity_Descend = 0.0
-};
+    GPS_Data.Latitude = 0.0;
+    GPS_Data.Lat_Indicator = 'N';
+    GPS_Data.Longitude = 0.0;
+    GPS_Data.Lon_Indicator = 'E';
 
+    GPS_Data.Speed_knots = 0.0;
+    GPS_Data.Course = 0.0;
+    GPS_Data.Altitude = 0.0;
+    GPS_Data.Num_Satellites = 0;
+
+    GPS_Data.Velocity_North = 0.0;
+    GPS_Data.Velocity_East = 0.0;
+    GPS_Data.Velocity_Descend = 0.0;
+
+    // GPS_Data.Status = 0;
+    GPS_Data.RMC_Valid = 0;
+    GPS_Data.GGA_Valid = 0;
+    GPS_Data.RMC_Latitude = 0.0;
+    GPS_Data.RMC_Longitude = 0.0;
+    GPS_Data.GGA_Latitude = 0.0;
+    GPS_Data.GGA_Longitude = 0.0;
+}
+
+/**
+ * @brief 检查 GPS 是否已找到信号
+ * 
+ * @return bool 如果 GPS 连续无效次数小于10，返回 true；否则返回 false
+ */
 bool is_gps_found(void) {
+    return (gps_invalid_count < 10);
+}
+
+/**
+ * @brief 检查当前 GPS 数据是否有效
+ * 
+ * @return bool 如果 GPS 状态为有效，返回 true；否则返回 false
+ */
+bool is_current_gps_data_valid(void) {
     if (GPS_Data.Status == 1) {
         return true;
     }
     return false;
 }
 
+// 用于存储前一时刻的高度和时间，用于计算速度
 static double Previous_Altitude = 0.0;
 static double Previous_Time = 0.0;
 
-// 将NMEA格式的经纬度转换为十进制度
+/**
+ * @brief 将 NMEA 格式的经纬度转换为十进制度
+ * 
+ * @param nmea NMEA 格式的经纬度字符串
+ * @param direction 方向字符（'N', 'S', 'E', 'W'）
+ * 
+ * @return double 转换后的十进制度值
+ */
 double Convert_NMEA_To_Degree(const char *nmea, char direction) {
     double deg = 0.0;
     double min = 0.0;
@@ -90,7 +131,13 @@ double Convert_NMEA_To_Degree(const char *nmea, char direction) {
     return deg;
 }
 
-// 解析GNRMC语句：$GNRMC,074700.000,A,2234.732734,N,11356.317512,E,1.67,285.57,150125,,,A,V*03
+/**
+ * @brief 解析 GNRMC 语句，例如：$GNRMC,074700.000,A,2234.732734,N,11356.317512,E,1.67,285.57,150125,,,A,V*03
+ * 
+ * 解析 GNRMC 语句，提取 GPS 数据，包括时间、状态、纬度、经度、速度、航向等信息。
+ * 
+ * @param sentence 输入的 GNRMC 语句字符串
+ */
 void Parse_GNRMC(char *sentence) {
     char *token = strtok(sentence, ",");
     int field = 0;
@@ -119,25 +166,25 @@ void Parse_GNRMC(char *sentence) {
             }
             case 3:
                 // 状态 A/V
-                GPS_Data.Status = (token[0] == 'A') ? 1 : 0;
+                GPS_Data.RMC_Valid = (token[0] == 'A') ? 1 : 0;
                 break;
             case 4:
                 // 纬度（暂时存储）
-                temp_latitude = Convert_NMEA_To_Degree(token, 'N'); // 默认方向为北
+                temp_latitude = Convert_NMEA_To_Degree(token, 'N');
                 break;
             case 5:
                 // 更新纬度方向
                 GPS_Data.Lat_Indicator = token[0];
-                GPS_Data.Latitude = (GPS_Data.Lat_Indicator == 'S') ? -temp_latitude : temp_latitude;
+                GPS_Data.RMC_Latitude = (GPS_Data.Lat_Indicator == 'S') ? -temp_latitude : temp_latitude;
                 break;
             case 6:
                 // 经度（暂时存储）
-                temp_longitude = Convert_NMEA_To_Degree(token, 'E'); // 默认方向为东
+                temp_longitude = Convert_NMEA_To_Degree(token, 'E');
                 break;
             case 7:
                 // 更新经度方向
                 GPS_Data.Lon_Indicator = token[0];
-                GPS_Data.Longitude = (GPS_Data.Lon_Indicator == 'W') ? -temp_longitude : temp_longitude;
+                GPS_Data.RMC_Longitude = (GPS_Data.Lon_Indicator == 'W') ? -temp_longitude : temp_longitude;
                 break;
             case 8:
                 // 地面速度 (节)
@@ -174,10 +221,19 @@ void Parse_GNRMC(char *sentence) {
     GPS_Data.Velocity_East = speed_m_s * sin(GPS_Data.Course * M_PI / 180.0);
 }
 
-// 解析GNGGA语句，$GNGGA,074700.000,2234.732734,N,11356.317512,E,1,7,1.31,47.379,M,-2.657,M,,*65
+/**
+ * @brief 解析 GNGGA 语句，例如：$GNGGA,074700.000,2234.732734,N,11356.317512,E,1,7,1.31,47.379,M,-2.657,M,,*65
+ * 
+ * 解析 GNGGA 语句，提取 GPS 数据，包括时间、纬度、经度、卫星数量、海拔高度等信息。
+ * 
+ * @param sentence 输入的 GNGGA 语句字符串
+ */
 void Parse_GNGGA(char *sentence) {
     char *token = strtok(sentence, ",");
     int field = 0;
+
+    double temp_latitude = 0.0;
+    double temp_longitude = 0.0;
 
     while (token != NULL) {
         field++;
@@ -190,24 +246,28 @@ void Parse_GNGGA(char *sentence) {
                 break;
             case 3:
                 // 纬度
-                GPS_Data.Latitude = Convert_NMEA_To_Degree(token, GPS_Data.Lat_Indicator);
+                temp_latitude = Convert_NMEA_To_Degree(token, 'N');
                 break;
             case 4:
                 // N/S
                 GPS_Data.Lat_Indicator = token[0];
-                GPS_Data.Latitude = Convert_NMEA_To_Degree(token - strlen(token), token[0]); // 重新计算
+                GPS_Data.GGA_Latitude = (GPS_Data.Lat_Indicator == 'S') ? -temp_latitude : temp_latitude;
                 break;
             case 5:
                 // 经度
-                GPS_Data.Longitude = Convert_NMEA_To_Degree(token, GPS_Data.Lon_Indicator);
+                temp_longitude = Convert_NMEA_To_Degree(token, 'E');
                 break;
             case 6:
                 // E/W
                 GPS_Data.Lon_Indicator = token[0];
-                GPS_Data.Longitude = Convert_NMEA_To_Degree(token - strlen(token), token[0]); // 重新计算
+                GPS_Data.GGA_Longitude = (GPS_Data.Lon_Indicator == 'W') ? -temp_longitude : temp_longitude;
                 break;
             case 7:
-                // 定位质量，0 = 无效，1 = GPS，2 = 差分GPS，...
+                // 定位质量
+                if (token[0] != '\0') {
+                    int quality = atoi(token);
+                    GPS_Data.GGA_Valid = (quality > 0) ? 1 : 0;
+                }
                 break;
             case 8:
                 // 可见卫星数量
@@ -237,8 +297,16 @@ void Parse_GNGGA(char *sentence) {
     }
 }
 
-// 主解析函数，处理缓冲区中的所有NMEA语句
+/**
+ * @brief 解析 NMEA 缓冲区中的所有语句
+ * 
+ * 遍历缓冲区中的每一行，识别并解析 GNRMC 和 GNGGA 语句。
+ * 
+ * @param buffer 包含 NMEA 语句的缓冲区
+ */
 void Parse_NMEA_Buffer(char *buffer) {
+    init_gps_data();
+
     char *start = buffer; // 指向字符串的开始
     char *end = NULL; // 指向每行的结束位置
 
@@ -269,8 +337,27 @@ void Parse_NMEA_Buffer(char *buffer) {
             Parse_GNGGA(start);
         }
     }
+
+    // 在所有语句解析完成后，更新最终状态和位置数据
+    if (GPS_Data.RMC_Valid && GPS_Data.GGA_Valid) {
+        GPS_Data.Status = 1;
+        gps_invalid_count = 0;  // 重置计数器
+        // 计算平均值
+        GPS_Data.Latitude = (GPS_Data.RMC_Latitude + GPS_Data.GGA_Latitude) / 2.0;
+        GPS_Data.Longitude = (GPS_Data.RMC_Longitude + GPS_Data.GGA_Longitude) / 2.0;
+    } else {
+        GPS_Data.Status = 0;
+        if (gps_invalid_count < UINT8_MAX) {  // 防止溢出
+            gps_invalid_count++;
+        }
+    }
 }
 
+/**
+ * @brief 打印当前的 GPS 数据
+ * 
+ * 将当前的 GPS 数据以日志的形式输出。
+ */
 void print_gps_data() {
     ESP_LOGI(TAG, 
         "GPS Data: Time=%02d:%02d:%06.3f, Date=%02d-%02d-20%02d, "
@@ -287,9 +374,14 @@ void print_gps_data() {
     );
 }
 
+/**
+ * @brief 推送 GPS 数据到相机
+ * 
+ * 将当前的 GPS 数据转换为指定格式，并通过命令逻辑推送到相机。
+ */
 void gps_push_data() {
     // 时间转换
-    int32_t year_month_day = GPS_Data.Year * 10000 + GPS_Data.Month * 100 + GPS_Data.Day;
+    int32_t year_month_day = (GPS_Data.Year + 2000) * 10000 + GPS_Data.Month * 100 + GPS_Data.Day;
     int32_t hour_minute_second = (GPS_Data.Hour + 8) * 10000 + GPS_Data.Minute * 100 + (int32_t)GPS_Data.Second;
 
     // 经纬度转换
@@ -308,16 +400,16 @@ void gps_push_data() {
     uint32_t satellite_number = GPS_Data.Num_Satellites;
 
     // 打印数据
-    ESP_LOGI(TAG, "GPS Data:");
-    ESP_LOGI(TAG, "  YearMonthDay (uint32_t): %lu", (unsigned long)year_month_day);
-    ESP_LOGI(TAG, "  HourMinuteSecond (uint32_t, UTC+8): %lu", (unsigned long)hour_minute_second);
-    ESP_LOGI(TAG, "  Longitude (uint32_t, scaled): %lu", (unsigned long)gps_longitude);
-    ESP_LOGI(TAG, "  Latitude (uint32_t, scaled): %lu", (unsigned long)gps_latitude);
-    ESP_LOGI(TAG, "  Height (uint32_t, mm): %lu", (unsigned long)height);
-    ESP_LOGI(TAG, "  Speed to North (float, cm/s): %.2f", speed_to_north);
-    ESP_LOGI(TAG, "  Speed to East (float, cm/s): %.2f", speed_to_east);
-    ESP_LOGI(TAG, "  Speed to Downward (float, cm/s): %.2f", speed_to_wnward);
-    ESP_LOGI(TAG, "  Satellite Number (uint32_t): %lu", (unsigned long)satellite_number);
+    // ESP_LOGI(TAG, "GPS Data:");
+    // ESP_LOGI(TAG, "  YearMonthDay (uint32_t): %lu", (unsigned long)year_month_day);
+    // ESP_LOGI(TAG, "  HourMinuteSecond (uint32_t, UTC+8): %lu", (unsigned long)hour_minute_second);
+    // ESP_LOGI(TAG, "  Longitude (uint32_t, scaled): %lu", (unsigned long)gps_longitude);
+    // ESP_LOGI(TAG, "  Latitude (uint32_t, scaled): %lu", (unsigned long)gps_latitude);
+    // ESP_LOGI(TAG, "  Height (uint32_t, mm): %lu", (unsigned long)height);
+    // ESP_LOGI(TAG, "  Speed to North (float, cm/s): %.2f", speed_to_north);
+    // ESP_LOGI(TAG, "  Speed to East (float, cm/s): %.2f", speed_to_east);
+    // ESP_LOGI(TAG, "  Speed to Downward (float, cm/s): %.2f", speed_to_wnward);
+    // ESP_LOGI(TAG, "  Satellite Number (uint32_t): %lu", (unsigned long)satellite_number);
 
     // 创建 GPS 数据帧
     gps_data_push_command_frame gps_frame = {
@@ -329,9 +421,9 @@ void gps_push_data() {
         .speed_to_north = speed_to_north,
         .speed_to_east = speed_to_east,
         .speed_to_wnward = speed_to_wnward,
-        .vertical_accuracy = 0,    // 默认精度为 0
-        .horizontal_accuracy = 0, // 默认精度为 0
-        .speed_accuracy = 0,      // 默认精度为 0
+        .vertical_accuracy = 1000,    // 垂直默认精度为 1000 mm
+        .horizontal_accuracy = 1000,  // 水平精度为 1000 mm
+        .speed_accuracy = 10,         // 速度精度为 10 cm/s
         .satellite_number = satellite_number
     };
 
@@ -342,7 +434,11 @@ void gps_push_data() {
     }
 }
 
-// 初始化 GPS UART
+/**
+ * @brief 初始化 GPS UART
+ * 
+ * 配置并初始化 GPS UART，用于接收 GPS 数据。
+ */
 static void initUartGps(void)
 {
     const uart_config_t uart_config = {
@@ -360,6 +456,13 @@ static void initUartGps(void)
     uart_set_pin(UART_GPS_PORT, UART_GPS_TXD_PIN, UART_GPS_RXD_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 }
 
+/**
+ * @brief GPS 数据接收任务
+ * 
+ * 从 GPS UART 端口读取数据，解析并处理 NMEA 数据。
+ * 
+ * @param arg 任务参数
+ */
 static void rx_task_GPS(void *arg)
 {
     static const char *RX_TASK_TAG = "RX_TASK_GPS";
@@ -368,7 +471,6 @@ static void rx_task_GPS(void *arg)
 
     while (1) {
         const int rxBytes = uart_read_bytes(UART_GPS_PORT, data, RX_BUF_SIZE, 20 / portTICK_PERIOD_MS);
-        
         if (rxBytes > 0) {
             data[rxBytes] = '\0'; // 确保字符串结束
             // ESP_LOGI(RX_TASK_TAG, "Read %d bytes: '%s'", rxBytes, data);
@@ -383,19 +485,27 @@ static void rx_task_GPS(void *arg)
             // 打印解析后的GPS数据
             // print_gps_data();
 
-            if(connect_logic_get_state() == PROTOCOL_CONNECTED && is_gps_found()){
+            if(connect_logic_get_state() == PROTOCOL_CONNECTED && is_current_gps_data_valid()){
                 gps_push_data();
             }
         }
-
         // 如果没有数据读取，休眠一小段时间，避免任务占用 CPU
         vTaskDelay(pdMS_TO_TICKS(10));
     }
     free(data);
 }
 
+/**
+ * @brief 初始化并启动 GPS 数据接收任务
+ * 
+ * 初始化 GPS UART 和相关任务，以定期接收 GPS 数据。
+ */
 void initSendGpsDataToCameraTask(void) {
     initUartGps();
+
+    char* gps_command = "$PAIR050,500*26\r\n";  // 5Hz 刷新频率（>1Hz 仅 RMC 和 GGA 支持）
+    uart_write_bytes(UART_GPS_PORT, gps_command, strlen(gps_command));  // 向 GPS 模块发送命令
+    
     xTaskCreate(rx_task_GPS, "uart_rx_task_GPS", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);
-    ESP_LOGI("MAIN", "uart_rx_task_GPS are running\n");
+    ESP_LOGI(TAG, "uart_rx_task_GPS are running\n");
 }

@@ -24,4 +24,6 @@ record_control_response_frame_t* command_logic_stop_record(void);
 
 gps_data_push_response_frame* command_logic_push_gps_data(const gps_data_push_command_frame *gps_data);
 
+key_report_response_frame_t* command_logic_key_report_qs(void);
+
 #endif

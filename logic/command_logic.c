@@ -338,3 +338,45 @@ gps_data_push_response_frame* command_logic_push_gps_data(const gps_data_push_co
     // 返回应答结构体指针
     return (gps_data_push_response_frame *)result.structure;
 }
+
+/**
+ * @brief 快速切换模式按键上报
+ *
+ * @return key_report_response_frame_t* 返回解析后的应答结构体指针，如果发生错误返回 NULL
+ */
+key_report_response_frame_t* command_logic_key_report_qs(void) {
+    ESP_LOGI(TAG, "%s: Reporting key press for mode switch", __FUNCTION__);
+
+    if (connect_logic_get_state() != PROTOCOL_CONNECTED) {
+        ESP_LOGE(TAG, "Protocol connection to the camera failed. Current connection state: %d", connect_logic_get_state());
+        return NULL;
+    }
+
+    uint16_t seq = generate_seq();
+
+    key_report_command_frame_t command_frame = {
+        .key_code = 0x02,                     // QS按键码，模式切换
+        .mode = 0x01,                         // 固定为 0x01
+        .key_value = 0x00,                    // 固定为 0x00，短按事件
+    };
+
+    CommandResult result = send_command(
+        0x00,
+        0x11,
+        CMD_RESPONSE_OR_NOT,
+        &command_frame,
+        seq,
+        5000
+    );
+
+    if (result.structure == NULL) {
+        ESP_LOGE(TAG, "Failed to send command or receive response");
+        return NULL;
+    }
+
+    key_report_response_frame_t *response = (key_report_response_frame_t *)result.structure;
+
+    ESP_LOGI(TAG, "Key Report Response: ret_code=%d", response->ret_code);
+
+    return response;
+}

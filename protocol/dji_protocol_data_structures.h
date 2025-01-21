@@ -99,4 +99,14 @@ typedef struct __attribute__((packed)) {
     uint8_t camera_bat_percentage; // 相机电池电量：0~100%
 } camera_status_push_command_frame;
 
+typedef struct __attribute__((packed)) {
+    uint8_t key_code;              // 按键代码
+    uint8_t mode;                  // 上报模式选择：0x00 上报按键按下/松开状态，0x01 上报按键事件
+    uint16_t key_value;            // 按键事件值: 当 mode 为 0 时，0x00 按键按下，0x01 按键松开；当 mode 为 1 时，按键事件类型: 0x00 短按事件，0x01 长按事件，0x02 双击事件，0x03 三击事件，0x04 四击事件
+} key_report_command_frame_t;
+
+typedef struct __attribute__((packed)) {
+    uint8_t ret_code;             // 返回码（参考普通返回码）
+} key_report_response_frame_t;
+
 #endif

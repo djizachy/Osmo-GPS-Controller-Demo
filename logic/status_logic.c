@@ -11,6 +11,7 @@
 
 static const char *TAG = "LOGIC_STATUS";
 
+// 全局变量，保存相机的各种状态信息
 uint8_t current_camera_mode = 0;
 uint8_t current_camera_status = 0;
 uint8_t current_video_resolution = 0;
@@ -18,6 +19,13 @@ uint8_t current_fps_idx = 0;
 uint8_t current_eis_mode = 0;
 bool camera_status_initialized = false;
 
+/**
+ * @brief 检查相机是否正在录制
+ * 
+ * 判断相机是否处于录制状态或预录制状态，并且状态已初始化。
+ * 
+ * @return bool 如果相机正在录制，则返回 true，否则返回 false
+ */
 bool is_camera_recording() {
     if ((current_camera_status == CAMERA_STATUS_PHOTO_OR_RECORDING || current_camera_status == CAMERA_STATUS_PRE_RECORDING) && camera_status_initialized) {
         return true;
@@ -25,6 +33,11 @@ bool is_camera_recording() {
     return false;
 }
 
+/**
+ * @brief 打印当前相机状态（部分状态，后续可自行打印其它状态）
+ * 
+ * 打印相机的模式、状态、分辨率、帧率和电子防抖模式等信息。
+ */
 void print_camera_status() {
     if (!camera_status_initialized) {
         ESP_LOGW(TAG, "Camera status has not been initialized.");
@@ -45,8 +58,14 @@ void print_camera_status() {
     ESP_LOGI(TAG, "  EIS: %s", eis_str);
 }
 
+/**
+ * @brief 订阅相机状态
+ * 
+ * @param push_mode 订阅模式
+ * @param push_freq 订阅频率
+ * @return int 返回 0 表示成功，-1 表示失败
+ */
 int subscript_camera_status(uint8_t push_mode, uint8_t push_freq) {
-
     ESP_LOGI(TAG, "Subscribing to Camera Status with push_mode: %d, push_freq: %d", push_mode, push_freq);
 
     if (connect_logic_get_state() != PROTOCOL_CONNECTED) {
@@ -68,8 +87,11 @@ int subscript_camera_status(uint8_t push_mode, uint8_t push_freq) {
 }
 
 /**
- * @brief 更新相机状态机
- * @param data
+ * @brief 更新相机状态机（回调函数）
+ * 
+ * 处理并更新相机的各项状态，检查状态是否发生变化并打印更新后的信息。
+ * 
+ * @param data 传入的相机状态数据
  */
 void update_camera_state_handler(void *data) {
     if (!data) {

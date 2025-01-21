@@ -52,94 +52,26 @@ typedef void (*ble_notify_callback_t)(const uint8_t *data, size_t length);
 
 typedef void (*connect_logic_state_callback_t)(void);
 
-/**
- * @brief BLE 客户端初始化
- *
- * @return esp_err_t
- *         - ESP_OK on success
- *         - Others on failure
- */
 esp_err_t ble_init();
 
-/**
- * @brief 连接到指定名称的设备（若已在扫描中，会自动在扫描到该设备时连接）
- *
- * @note  本接口仅作为演示，如果想主动指定地址连接，可自行扩展接口
- * @return esp_err_t
- */
 esp_err_t ble_start_scanning_and_connect(void);
 
-/**
- * @brief 断开连接（如果已经连接）
- *
- * @return esp_err_t
- */
+esp_err_t ble_reconnect(void);
+
 esp_err_t ble_disconnect(void);
 
-/**
- * @brief 读取指定特征
- *
- * @param conn_id  连接 ID（由回调事件或内部管理获得）
- * @param handle   特征的 handle
- * @return esp_err_t
- */
 esp_err_t ble_read(uint16_t conn_id, uint16_t handle);
 
-/**
- * @brief 写特征（Write Without Response）
- *
- * @param conn_id   连接 ID
- * @param handle    特征 handle
- * @param data      要写入的数据
- * @param length    数据长度
- * @return esp_err_t
- */
 esp_err_t ble_write_without_response(uint16_t conn_id, uint16_t handle, const uint8_t *data, size_t length);
 
-/**
- * @brief 写特征（Write With Response）
- *
- * @param conn_id   连接 ID
- * @param handle    特征 handle
- * @param data      要写入的数据
- * @param length    数据长度
- * @return esp_err_t
- */
 esp_err_t ble_write_with_response(uint16_t conn_id, uint16_t handle, const uint8_t *data, size_t length);
 
-/**
- * @brief 注册（开启）Notify
- *
- * @param conn_id   连接 ID
- * @param char_handle 需要开启通知的特征 handle
- * @return esp_err_t
- */
 esp_err_t ble_register_notify(uint16_t conn_id, uint16_t char_handle);
 
-/**
- * @brief 反注册（关闭）Notify
- *
- * @note  此处仅示例逻辑，需要特征的 Client Config 描述符 handle 来进行操作
- *        若实际项目需要，也可直接先前保存 descr handle，然后在此进行关闭写 0x0000
- *
- * @param conn_id   连接 ID
- * @param char_handle 需要关闭通知的特征 handle
- * @return esp_err_t
- */
 esp_err_t ble_unregister_notify(uint16_t conn_id, uint16_t char_handle);
 
-/**
- * @brief 设置全局的 Notify 回调（用于接收数据）
- *
- * @param cb 回调函数指针
- */
 void ble_set_notify_callback(ble_notify_callback_t cb);
 
-/**
- * @brief 设置全局的逻辑层断连状态回调
- *
- * @param cb 回调函数指针
- */
 void ble_set_state_callback(connect_logic_state_callback_t cb);
 
 #endif

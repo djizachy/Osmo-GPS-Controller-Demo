@@ -9,7 +9,8 @@ uint16_t generate_seq(void);
 
 typedef struct {
     void *structure;
-    size_t length;  // 这里的长度并不是 structure 长度，而是 DATA 段除去 CmdSet 和 CmdID 的长度
+    size_t length;  // This is not the length of structure, but the length of DATA segment excluding CmdSet and CmdID
+                    // 这里的长度并不是 structure 长度，而是 DATA 段除去 CmdSet 和 CmdID 的长度
 } CommandResult;
 
 CommandResult send_command(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, const void *structure, uint16_t seq, int timeout_ms);

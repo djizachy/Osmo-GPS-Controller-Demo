@@ -7,10 +7,15 @@
 #define TAG "DJI_PROTOCOL_DATA_PROCESSOR"
 
 /**
- * @brief 根据命令集和命令ID查找对应的数据描述符
- * @param cmd_set 命令集
- * @param cmd_id 命令ID
- * @return 返回找到的数据描述符指针，如果未找到则返回NULL
+ * @brief Find data descriptor by command set and command ID
+ *        根据命令集和命令ID查找对应的数据描述符
+ * 
+ * @param cmd_set Command set
+ *                命令集
+ * @param cmd_id Command ID
+ *               命令ID
+ * @return Return pointer to found data descriptor, NULL if not found
+ *         返回找到的数据描述符指针，如果未找到则返回NULL
  */
 const data_descriptor_t *find_data_descriptor(uint8_t cmd_set, uint8_t cmd_id) {
     for (size_t i = 0; i < DATA_DESCRIPTORS_COUNT; ++i) {
@@ -22,24 +27,37 @@ const data_descriptor_t *find_data_descriptor(uint8_t cmd_set, uint8_t cmd_id) {
 }
 
 /**
- * @brief 根据结构体解析数据
- * @param cmd_set 命令集
- * @param cmd_id 命令ID
- * @param cmd_type 命令类型
- * @param data 待解析的数据
- * @param data_length 数据长度
- * @param structure_out 输出结构体指针
- * @return 成功返回0，失败返回-1
+ * @brief Parse data according to structure
+ *        根据结构体解析数据
+ * 
+ * @param cmd_set Command set
+ *                命令集
+ * @param cmd_id Command ID
+ *               命令ID
+ * @param cmd_type Command type
+ *                 命令类型
+ * @param data Data to be parsed
+ *             待解析的数据
+ * @param data_length Data length
+ *                    数据长度
+ * @param structure_out Output structure pointer
+ *                      输出结构体指针
+ * @return Return 0 on success, -1 on failure
+ *         成功返回0，失败返回-1
  */
 int data_parser_by_structure(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, const uint8_t *data, size_t data_length, void *structure_out) {
     ESP_LOGI(TAG, "Parsing CmdSet: 0x%02X, CmdID: 0x%02X, CmdType: 0x%02X", cmd_set, cmd_id, cmd_type);
 
+    // Find corresponding descriptor
+    // 查找对应的命令描述符
     const data_descriptor_t *descriptor = find_data_descriptor(cmd_set, cmd_id);
     if (descriptor == NULL) {
         fprintf(stderr, "Descriptor not found for CmdSet: 0x%02X, CmdID: 0x%02X\n", cmd_set, cmd_id);
         return -1;
     }
 
+    // Check if parser function exists
+    // 检查解析函数是否存在
     if (descriptor->parser == NULL) {
         fprintf(stderr, "Parser function is NULL for CmdSet: 0x%02X, CmdID: 0x%02X\n", cmd_set, cmd_id);
         return -1;
@@ -49,21 +67,33 @@ int data_parser_by_structure(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, 
 }
 
 /**
- * @brief 根据结构体创建数据
- * @param cmd_set 命令集
- * @param cmd_id 命令ID
- * @param cmd_type 命令类型
- * @param structure 输入结构体指针
- * @param data_length 输出数据长度
- * @return 返回创建的数据缓冲区指针，失败返回NULL
+ * @brief Create data according to structure
+ *        根据结构体创建数据
+ * 
+ * @param cmd_set Command set
+ *                命令集
+ * @param cmd_id Command ID
+ *               命令ID
+ * @param cmd_type Command type
+ *                 命令类型
+ * @param structure Input structure pointer
+ *                  输入结构体指针
+ * @param data_length Output data length
+ *                    输出数据长度
+ * @return Return pointer to created data buffer, NULL on failure
+ *         返回创建的数据缓冲区指针，失败返回NULL
  */
 uint8_t* data_creator_by_structure(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, const void *structure, size_t *data_length) {
+    // Find corresponding descriptor
+    // 查找对应的命令描述符
     const data_descriptor_t *descriptor = find_data_descriptor(cmd_set, cmd_id);
     if (descriptor == NULL) {
         fprintf(stderr, "Descriptor not found for CmdSet: 0x%02X, CmdID: 0x%02X\n", cmd_set, cmd_id);
         return NULL;
     }
 
+    // Check if creator function exists
+    // 检查创建函数是否存在
     if (descriptor->creator == NULL) {
         fprintf(stderr, "Creator function is NULL for CmdSet: 0x%02X, CmdID: 0x%02X\n", cmd_set, cmd_id);
         return NULL;

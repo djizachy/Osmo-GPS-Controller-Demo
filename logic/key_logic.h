@@ -6,13 +6,19 @@
 #include "driver/gpio.h"
 
 #define BOOT_KEY_GPIO   GPIO_NUM_9  // 假设 BOOT 按钮连接到 GPIO 9
+                                    // Assume BOOT button is connected to GPIO 9
 
 // 按键事件
+// Key Events
 typedef enum {
     KEY_EVENT_NONE = 0,   // 无事件
+                          // No event
     KEY_EVENT_SINGLE,     // 单击事件
+                          // Single click event
     KEY_EVENT_LONG_PRESS, // 长按事件
+                          // Long press event
     KEY_EVENT_ERROR       // 错误事件
+                          // Error event
 } key_event_t;
 
 void key_logic_init(void);

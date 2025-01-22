@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 // 相机状态全局变量声明（其他的后续可补充）
+// Declaration of global variables for camera status (more can be added later)
 extern uint8_t current_camera_mode;
 extern uint8_t current_camera_status;
 extern uint8_t current_video_resolution;

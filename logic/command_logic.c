@@ -36,6 +36,10 @@ uint16_t generate_seq(void) {
  *            序列号，用于匹配请求与响应
  * @param timeout_ms Timeout for waiting result (in milliseconds)
  *                   等待结果的超时时间（以毫秒为单位）
+ * 
+ * Note: The caller needs to free the dynamically allocated memory after using the returned structure.
+ * 注意：调用方需要在使用完返回的结构体后释放动态分配的内存。
+ * 
  * @return CommandResult Returns parsed structure pointer and data length on success, NULL pointer and length 0 on failure
  *                       成功返回解析后的结构体指针及数据长度，失败返回 NULL 指针及长度 0
  */
@@ -149,6 +153,7 @@ CommandResult send_command(uint8_t cmd_set, uint8_t cmd_id, uint8_t cmd_type, co
  *
  * @param mode Camera mode
  *             相机模式
+ * 
  * @return camera_mode_switch_response_frame_t* Returns parsed structure pointer, NULL on error
  *                                              返回解析后的结构体指针，如果发生错误返回 NULL
  */
@@ -200,9 +205,6 @@ camera_mode_switch_response_frame_t* command_logic_switch_camera_mode(camera_mod
  * The returned version information includes acknowledgment result (`ack_result`), 
  * product ID (`product_id`) and SDK version (`sdk_version`).
  * 返回的版本号信息包括应答结果 (`ack_result`)、产品 ID (`product_id`) 和 SDK 版本号 (`sdk_version`)。
- * 
- * Note: The caller needs to free the dynamically allocated memory after using the returned structure.
- * 注意：调用方需要在使用完返回的结构体后释放动态分配的内存。
  *
  * @return version_query_response_frame_t* Returns parsed version info structure, NULL on error
  *                                         返回解析后的版本信息结构体，如果发生错误返回 NULL
@@ -335,6 +337,7 @@ record_control_response_frame_t* command_logic_stop_record(void) {
  *
  * @param gps_data Pointer to structure containing GPS data
  *                 指向包含 GPS 数据的结构体
+ * 
  * @return gps_data_push_response_frame* Returns parsed response structure pointer, NULL on error
  *                                       返回解析后的应答结构体指针，如果发生错误返回 NULL
  */

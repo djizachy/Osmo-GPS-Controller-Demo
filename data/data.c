@@ -435,7 +435,7 @@ bool is_data_layer_initialized(void) {
  *                        数据长度
  * 
  * @return esp_err_t ESP_OK on success, error code on failure
- *                    成功返回 ESP_OK，失败返回错误码
+ *                   成功返回 ESP_OK，失败返回错误码
  */
 esp_err_t data_write_with_response(uint16_t seq, const uint8_t *raw_data, size_t raw_data_length) {
     // Validate input parameters
@@ -507,7 +507,7 @@ esp_err_t data_write_with_response(uint16_t seq, const uint8_t *raw_data, size_t
  *                        数据长度
  * 
  * @return esp_err_t ESP_OK on success, error code on failure
- *                    成功返回 ESP_OK，失败返回错误码
+ *                   成功返回 ESP_OK，失败返回错误码
  */
 esp_err_t data_write_without_response(uint16_t seq, const uint8_t *raw_data, size_t raw_data_length) {
     // Validate input parameters
@@ -585,10 +585,10 @@ esp_err_t data_write_without_response(uint16_t seq, const uint8_t *raw_data, siz
  * @param out_result Return parsed result
  *                   返回解析结果
  * @param out_result_length Return length of parsed result
- *                         返回解析结果的长度
+ *                          返回解析结果的长度
  * 
  * @return esp_err_t ESP_OK on success, error code on failure
- *                    成功返回 ESP_OK，失败返回错误码
+ *                   成功返回 ESP_OK，失败返回错误码
  */
 esp_err_t data_wait_for_result_by_seq(uint16_t seq, int timeout_ms, void **out_result, size_t *out_result_length) {
     // Validate input parameters
@@ -705,10 +705,10 @@ esp_err_t data_wait_for_result_by_seq(uint16_t seq, int timeout_ms, void **out_r
  * @param out_result Return parsed result
  *                   返回解析结果
  * @param out_result_length Return length of parsed result
- *                         返回解析结果的长度
+ *                          返回解析结果的长度
  * 
  * @return esp_err_t ESP_OK on success, error code on failure
- *                    成功返回 ESP_OK，失败返回错误码
+ *                   成功返回 ESP_OK，失败返回错误码
  */
 esp_err_t data_wait_for_result_by_cmd(uint8_t cmd_set, uint8_t cmd_id, int timeout_ms, uint16_t *out_seq, void **out_result, size_t *out_result_length) {
     // Validate input parameters
@@ -839,7 +839,7 @@ void data_register_status_update_callback(camera_status_update_cb_t callback) {
  * @param raw_data Raw notification data
  *                 原始通知数据
  * @param raw_data_length Data length
- *                       数据长度
+ *                        数据长度
  */
 void receive_camera_notify_handler(const uint8_t *raw_data, size_t raw_data_length) {
     // Validate input parameters
@@ -904,9 +904,9 @@ void receive_camera_notify_handler(const uint8_t *raw_data, size_t raw_data_leng
                     // Put parsing result into corresponding entry
                     // 将解析结果放入对应的条目
                     entry->parse_result = parse_result;  // Store void* result in entry's value field
-                                                       // 将 void* 结果存储到条目的 value 字段
+                                                         // 将 void* 结果存储到条目的 value 字段
                     entry->parse_result_length = parse_result_length; // Record result length
-                                                                     // 记录结果长度
+                                                                      // 记录结果长度
                     // Wake up waiting task
                     // 唤醒等待的任务
                     xSemaphoreGive(entry->sem);

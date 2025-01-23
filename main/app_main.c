@@ -1,3 +1,24 @@
+/*
+ * Copyright (c) 2025 DJI
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
 #include "freertos/FreeRTOS.h"
 
 #include "connect_logic.h"
@@ -11,7 +32,8 @@
  *
  * This function initializes the ambient light, GPS module, Bluetooth connection, 
  * and key logic in sequence, and starts a loop task for periodic operations.
- * 在此函数中，依次初始化氛围灯、GPS模块、蓝牙连接和按键逻辑，
+ * 
+ * 在此函数中，依次初始化氛围灯、GPS模块、蓝牙模块和按键逻辑，
  * 并启动一个循环任务，周期性进行操作。
  */
 void app_main(void) {

@@ -146,7 +146,7 @@ int connect_logic_ble_connect() {
 
     /* 3. Wait up to 5 seconds to ensure BLE connection success */
     /* 等待最多 5 秒以确保 BLE 连接成功 */
-    ESP_LOGI(TAG, "Waiting up to 30s for BLE to connect...");
+    ESP_LOGI(TAG, "Waiting up to 5s for BLE to connect...");
     bool connected = false;
     for (int i = 0; i < 50; i++) { // 50 * 100ms = 5s
         if (s_ble_profile.connection_status.is_connected) {

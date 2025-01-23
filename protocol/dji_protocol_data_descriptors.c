@@ -67,6 +67,8 @@ uint8_t* camera_mode_switch_creator(const void *structure, size_t *data_length, 
         
         memcpy(data, command_frame, *data_length);
     } else {
+        // 暂不支持此功能的应答帧创建
+        // Response frame creation for this functionality is not yet supported.
         ESP_LOGE(TAG, "Response frames are not supported in camera_mode_switch_creator");
         return NULL;
     }
@@ -83,6 +85,8 @@ int camera_mode_switch_parser(const uint8_t *data, size_t data_length, void *str
     ESP_LOGI(TAG, "Parsing Camera Mode Switch data, received data length: %zu", data_length);
 
     if ((cmd_type & 0x20) == 0) {
+        // 暂不支持此功能的命令帧解析
+        // Command frame parsing for this functionality is not yet supported.
         ESP_LOGE(TAG, "camera_mode_switch_parser: Only response frames are supported");
         return -1;
     }

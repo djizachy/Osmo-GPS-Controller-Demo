@@ -37,7 +37,7 @@ The hardware connection involves the connection between the ESP32-C6-WROOM-1 and
 
 Please ensure that the pins are correctly connected, especially the TX and RX pins, to ensure proper data transmission.
 
-<img title="" src="./docs/images/hardware_wiring_diagram.png" alt="Hardware Wiring Diagram" data-align="inline" width="711">
+<img title="Hardware Wiring Diagram" src="docs/images/hardware_wiring_diagram.png" alt="Hardware Wiring Diagram" data-align="inline" width="711">
 
 ## Quick Start
 
@@ -71,9 +71,9 @@ Please ensure that the pins are correctly connected, especially the TX and RX pi
 
 The following diagram illustrates the general process of frame parsing in the program:
 
-<img title="" src="./docs/images/protocol_parsing_diagram.png" alt="Protocol Parsing Diagram" data-align="inline" width="711">
+<img title="Protocol Parsing Diagram" src="docs/images/protocol_parsing_diagram.png" alt="Protocol Parsing Diagram" data-align="inline" width="711">
 
-For detailed documentation, please refer to: [Protocol Parsing Documentation](./docs/protocol.md)
+For detailed documentation, please refer to: [Protocol Parsing Documentation](docs/protocol.md)
 
 ### Data Layer
 
@@ -159,7 +159,7 @@ In `key_logic`, long-press and single-click events are configured for the BOOT b
 
 After reading the documentation above, you can try adding a new feature: putting the camera to sleep mode with a single click of the BOOT button.
 
-For detailed implementation, please refer to: [Camera Sleep Example Documentation](./docs/camera_sleep_example.md)
+For detailed implementation, please refer to: [Camera Sleep Example Documentation](docs/camera_sleep_example.md)
 
 ## Reference Documents
 

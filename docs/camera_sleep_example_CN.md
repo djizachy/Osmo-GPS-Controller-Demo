@@ -191,7 +191,7 @@ static void handle_boot_single_press() {
 }
 ```
 
-## 测试效果
+## 测试
 
 完成上述代码修改后，按照以下步骤进行测试：
 

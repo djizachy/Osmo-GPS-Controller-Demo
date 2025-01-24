@@ -43,7 +43,7 @@ protocol/
 - **dji_protocol_data_descriptors**：为每个功能定义三元组 (CmdSet, CmdId) - creator - parser，以便进行功能扩展。
 - **dji_protocol_data_structures**：为命令帧和应答帧定义结构体。
 
-<img title="" src="./images/protocol_layer.png" alt="Protocol Layer Parsing Diagram" data-align="center" width="652">
+<img title="Protocol Layer" src="images/protocol_layer.png" alt="Protocol Layer" data-align="center" width="652">
 
 上述图片展示了协议层如何解析 DJI R SDK 帧，组装过程也是类似的。
 

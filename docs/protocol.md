@@ -43,7 +43,7 @@ protocol/
 - **dji_protocol_data_descriptors**: Defines a triple (CmdSet, CmdId) - creator - parser for each function to facilitate functionality expansion.
 - **dji_protocol_data_structures**: Defines structures for command frames and response frames.
 
-<img title="" src="./images/protocol_layer.png" alt="Protocol Layer Parsing Diagram" data-align="center" width="652">
+<img title="Protocol Layer" src="images/protocol_layer.png" alt="Protocol Layer" data-align="center" width="652">
 
 The image above demonstrates how the protocol layer parses the DJI R SDK frames, and the assembly process is similar.
 

@@ -37,7 +37,7 @@
 
 请确保正确连接各个引脚，尤其是 TX 和 RX 引脚的互连，以保证数据传输的正常进行。
 
-<img title="" src="./docs/images/hardware_wiring_diagram.png" alt="Hardware Wiring Diagram" data-align="inline" width="711">
+<img title="Hardware Wiring Diagram" src="docs/images/hardware_wiring_diagram.png" alt="Hardware Wiring Diagram" data-align="inline" width="711">
 
 ## 快速开始
 
@@ -72,9 +72,9 @@
 
 下面这张图展示了程序在解析帧时的大致流程：
 
-<img title="" src="./docs/images/protocol_parsing_diagram.png" alt="Protocol Parsing Diagram" data-align="inline" width="711">
+<img title="Protocol Parsing Diagram" src="docs/images/protocol_parsing_diagram.png" alt="Protocol Parsing Diagram" data-align="inline" width="711">
 
-详细文档请参阅：[协议解析说明文档](./docs/protocol_CN.md)
+详细文档请参阅：[协议解析说明文档](docs/protocol_CN.md)
 
 ## 数据层说明
 
@@ -167,7 +167,7 @@ typedef enum {
 
 阅读完以上文档后，你可以开始尝试新增一个新功能：单击 BOOT 按钮让相机休眠。
 
-具体示例参阅文档：[相机休眠示例文档](./docs/camera_sleep_example_CN.md)
+具体示例参阅文档：[相机休眠示例文档](docs/camera_sleep_example_CN.md)
 
 ## 参考文档
 

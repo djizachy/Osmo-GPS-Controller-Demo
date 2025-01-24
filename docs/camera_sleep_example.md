@@ -15,7 +15,7 @@ Camera Power Mode Setting
 | Response Frame  | 0      | 1    | ret code   | uint8_t | Refer to the common return code                   |
 ```
 
-## Protocol layer modifications
+## Protocol Layer Modification
 
 First, we need to define the command frame and response frame in `dji_protocol_data_structures.h`:
 
@@ -114,7 +114,7 @@ const data_descriptor_t data_descriptors[] = {
 };
 ```
 
-## Go to the logic layer to define functions
+## Logic Layer Function Creation
 
 Create a new function in `command_logic.c`:
 
@@ -168,7 +168,7 @@ In `command_logic.h` declare:
 camera_power_mode_switch_response_frame_t* command_logic_power_mode_switch_sleep(void);
 ```
 
-## Modify key logic
+## Modify Key Logic
 
 In `key_logic.c`, modify the `handle_boot_single_press` function to:
 
@@ -192,14 +192,14 @@ static void handle_boot_single_press() {
 
 ## Test
 
-After completing the above code modification, follow the steps below to test:
+After completing the code modifications, follow these steps to test:
 
-1. Rebuild the project
+1. Rebuild the project.
 
-2. Write the firmware to the development board via the USB data cable
+2. Flash the firmware to the development board via USB cable.
 
-3. Long press the BOOT button until a Bluetooth connection is established with the camera (the LED indicator will show the connection status)
+3. Long press the BOOT button until a Bluetooth connection is established with the camera (the LED indicator will show the connection status).
 
-4. After the connection is successful, click the BOOT button. You can observe that the camera enters sleep mode and the display turns off
+4. Once connected, press the BOOT button again, and you should observe the camera entering sleep mode with the display turning off.
 
-If everything is normal, the camera will successfully enter sleep mode. You can confirm the execution status and return code of the command by viewing the serial port log.
+If everything works correctly, the camera will successfully enter sleep mode. You can check the serial log to confirm the execution status of the command and the return code.

@@ -85,7 +85,7 @@ static void handle_boot_long_press() {
     /* Reconnect BLE */
     connect_state_t current_state = connect_logic_get_state();
 
-    if (current_state > BLE_INIT_COMPLETE) {
+    if (current_state >= BLE_INIT_COMPLETE) {
         ESP_LOGI(TAG, "Current state is %d, disconnecting Bluetooth...", current_state);
         int res = connect_logic_ble_disconnect();
         if (res == -1) {

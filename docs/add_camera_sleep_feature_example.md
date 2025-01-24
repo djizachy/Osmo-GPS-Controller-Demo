@@ -1,4 +1,4 @@
-# Camera Sleep Example Documentation
+# Add Camera Sleep Feature Example Documentation
 
 The objective of this document is to implement a feature that allows the camera to enter sleep mode with a single press of the BOOT button, based on this open-source project.
 

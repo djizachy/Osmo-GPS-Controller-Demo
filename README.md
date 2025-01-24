@@ -161,7 +161,7 @@ In `key_logic`, long-press and single-click events are configured for the BOOT b
 
 After reading the documentation above, you can try adding a new feature: putting the camera to sleep mode with a single click of the BOOT button.
 
-For detailed implementation, please refer to: [Camera Sleep Example Documentation](docs/camera_sleep_example.md)
+For detailed implementation, please refer to: [Add Camera Sleep Feature Example Documentation](docs/add_camera_sleep_feature_example.md)
 
 ## Reference Documents
 

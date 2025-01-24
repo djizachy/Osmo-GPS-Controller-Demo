@@ -169,7 +169,7 @@ typedef enum {
 
 阅读完以上文档后，你可以开始尝试新增一个新功能：单击 BOOT 按键让相机休眠。
 
-具体示例参阅文档：[相机休眠示例文档](docs/camera_sleep_example_CN.md)
+具体示例参阅文档：[添加相机休眠功能-示例文档](docs/add_camera_sleep_feature_example_CN.md)
 
 ## 参考文档
 

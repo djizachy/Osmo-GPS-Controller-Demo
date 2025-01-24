@@ -111,6 +111,11 @@ bool is_current_gps_data_valid(void) {
 static double Previous_Altitude = 0.0;
 static double Previous_Time = 0.0;
 
+// Used to store the previous latitude and longitude for outlier removal
+// 用于存储前一时刻的纬度和经度，用于剔除异常值
+static double Previous_Latitude = 0.0;
+static double Previous_Longitude = 0.0;
+
 /**
  * @brief Convert NMEA format coordinates to decimal degrees
  *        将 NMEA 格式的经纬度转换为十进制度
@@ -456,6 +461,19 @@ void Parse_NMEA_Buffer(char *buffer) {
         // Calculate average
         GPS_Data.Latitude = (GPS_Data.RMC_Latitude + GPS_Data.GGA_Latitude) / 2.0;
         GPS_Data.Longitude = (GPS_Data.RMC_Longitude + GPS_Data.GGA_Longitude) / 2.0;
+
+        // 与前一时刻的纬度和经度做对比
+        // Compare with previous latitude and longitude
+        if (fabs(GPS_Data.Latitude - Previous_Latitude) > 0.009 || fabs(GPS_Data.Longitude - Previous_Longitude) > 0.0127) {
+            // 超过阈值，剔除异常值并更新前一时刻经纬度
+            // If the change exceeds threshold, set status to 0 and update the previous latitude and longitude
+            GPS_Data.Status = 0;
+        }
+
+        // 更新前一时刻的经纬度
+        // Update the previous latitude and longitude
+        Previous_Latitude = GPS_Data.Latitude;
+        Previous_Longitude = GPS_Data.Longitude;
     } else {
         GPS_Data.Status = 0;
         if (gps_invalid_count < UINT8_MAX) {  // 防止溢出
@@ -487,6 +505,7 @@ void print_gps_data() {
         GPS_Data.Velocity_Descend
     );
 }
+
 /**
  * @brief 推送 GPS 数据到相机
  *        Push GPS data to camera

@@ -392,6 +392,7 @@ void Parse_GNGGA(char *sentence) {
         token = strtok(NULL, ",");
     }
 }
+
 /**
  * @brief 解析 NMEA 缓冲区中的所有语句
  *        Parse all sentences in NMEA buffer
@@ -607,7 +608,7 @@ static void rx_task_GPS(void *arg)
         if (rxBytes > 0) {
             // 给看门狗喂狗的机会
             // Give watchdog a chance to reset
-            vTaskDelay(pdMS_TO_TICKS(10));
+            vTaskDelay(pdMS_TO_TICKS(5));
 
             data[rxBytes] = '\0';
 
@@ -625,7 +626,7 @@ static void rx_task_GPS(void *arg)
 
             // 给看门狗喂狗的机会
             // Give watchdog a chance to reset
-            vTaskDelay(pdMS_TO_TICKS(10));
+            vTaskDelay(pdMS_TO_TICKS(5));
 
             // 打印解析后的GPS数据
             // Print parsed GPS data
@@ -633,6 +634,7 @@ static void rx_task_GPS(void *arg)
 
             if(connect_logic_get_state() == PROTOCOL_CONNECTED && is_current_gps_data_valid()){
                 gps_push_data();
+
             }
         }
         // 如果没有数据读取，休眠一小段时间，避免任务占用 CPU

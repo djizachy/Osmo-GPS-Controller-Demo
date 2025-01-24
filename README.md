@@ -103,9 +103,11 @@ char* gps_command = "$PAIR050,100*22\r\n";  // (>1Hz only RMC and GGA supported)
 uart_write_bytes(UART_GPS_PORT, gps_command, strlen(gps_command));
 ```
 
-When parsing a large number of such strings to obtain latitude, longitude, speed components, and other information, invalid data needs to be filtered out, and methods for data correction and accuracy improvement can be applied. Due to the frequent parsing process, attention must be paid to the watchdog timeout during task execution, so the program uses `vTaskDelay` appropriately to reset the watchdog. This program uses a simple parsing method for data push demonstration; please refer to the `Parse_NMEA_Buffer` and `gps_push_data` functions in `gps_logic`.
+When parsing a large number of similar strings to extract information such as latitude, longitude, and velocity components, it is necessary to filter out invalid data. To reduce inaccuracies caused by drift, positioning errors, and other factors, it is recommended to apply filtering and other necessary processing to the GPS data before sending it. This program currently does not focus on these issues in depth, but in the future, appropriate filtering algorithms and error correction mechanisms can be introduced as needed to ensure the accuracy and reliability of the data.
 
-When GPS signal is available (indicated by a steady purple RGB light), recording starts. After stopping the recording, you can view the corresponding data on the dashboard in the DJI Mimo APP.
+Since the parsing process is frequently executed, it is important to be mindful of potential watchdog timeouts during task execution. Therefore, `vTaskDelay` has been appropriately used in the program to reset the watchdog. This program uses a simple parsing method for data pushing demonstration. Please refer to the `Parse_NMEA_Buffer` and `gps_push_data` functions in `gps_logic`.
+
+When GPS signal is available (indicated by the solid purple RGB light), video recording will begin, and after recording ends, the corresponding data can be viewed on the DJI Mimo app dashboard.
 
 ## How to Add a Feature
 

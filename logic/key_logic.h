@@ -26,7 +26,7 @@
 #include "freertos/task.h"
 #include "driver/gpio.h"
 
-#define BOOT_KEY_GPIO   GPIO_NUM_9  // 假设 BOOT 按钮连接到 GPIO 9
+#define BOOT_KEY_GPIO   GPIO_NUM_9  // 假设 BOOT 按键连接到 GPIO 9
                                     // Assume BOOT button is connected to GPIO 9
 
 // 按键事件

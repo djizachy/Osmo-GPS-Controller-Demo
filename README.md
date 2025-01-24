@@ -169,7 +169,7 @@ For a more comprehensive understanding of the project, refer to the following do
 
 - **ESP-IDF**：[ESP-IDF Official GitHub Repository](https://github.com/espressif/esp-idf/)
 
-- **LC76G GNSS Module**：[LC76G GNSS Module - Waveshare Wiki](https://www.waveshare.net/wiki/LC76G_GPS_Module)
+- **LC76G GNSS Module**：[LC76G GNSS Module - Waveshare Wiki](https://www.waveshare.com/wiki/LC76G_GNSS_Module)
 
 - **ESP32-C6-WROOM-1**：[ESP32-C6-DevKitC-1 v1.2 - ESP32-C6 User Guide](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c6/esp32-c6-devkitc-1/user_guide.html)
 

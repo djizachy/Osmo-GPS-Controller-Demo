@@ -215,7 +215,7 @@ int connect_logic_ble_connect() {
     // 更新状态为 BLE 已连接
     connect_state = BLE_CONNECTED;
 
-    // Delay ambient light display
+    // Delay RGB light display
     // 延迟展示氛围灯
     vTaskDelay(pdMS_TO_TICKS(2000));
     ESP_LOGI(TAG, "BLE connect successfully");

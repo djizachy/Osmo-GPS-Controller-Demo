@@ -1,3 +1,11 @@
+********************************************************************************************************
+
+Osmo Action GPS Bluetooth Remote Controller (ESP32-C6-Example) is offered under DJI's END USER LICENSE AGREEMENT. You can obtain the license from the below link:
+
+http://developer.dji.com/policies/eula/
+
+********************************************************************************************************
+
 Copyright (c) 2025 DJI
 
 The following license is modified from the MIT license.
@@ -34,3 +42,9 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+********************************************************************************************************
+
+The Osmo Action GPS Bluetooth Remote Controller (ESP32-C6-Example) project uses esp-idf, which is released under the Apache License Version 2.0. The source code of esp-idf is available at: https://github.com/espressif/esp-idf.
+
+********************************************************************************************************

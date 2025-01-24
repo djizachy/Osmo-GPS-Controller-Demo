@@ -30,7 +30,7 @@
  * @brief Main application function, performs initialization and task loop
  * 应用主函数，执行初始化和任务循环
  *
- * This function initializes the ambient light, GPS module, Bluetooth connection, 
+ * This function initializes the RGB light, GPS module, Bluetooth connection, 
  * and key logic in sequence, and starts a loop task for periodic operations.
  * 
  * 在此函数中，依次初始化氛围灯、GPS模块、蓝牙模块和按键逻辑，
@@ -40,7 +40,7 @@ void app_main(void) {
 
     int res = 0;
 
-    /* Initialize ambient light */
+    /* Initialize RGB light */
     /* 初始化氛围灯 */
     res = init_light_logic();
     if (res != 0) {

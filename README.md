@@ -14,7 +14,7 @@ This project provides a set of code running on the ESP32-C6 development board (b
 
 - **Protocol Parsing**: The `protocol` layer demonstrates how to parse the DJI R SDK protocol.
 - **GPS Data Push**: Collect GPS data at a 10Hz frequency using the LC76G GNSS module, parse it, and push it to the camera in real time.
-- **Button Support**: Supports single-click (start/stop recording) and long-press (search for and connect to the nearest camera) operations.
+- **Button Support**: Supports single-click (start/stop recording) and long-press (search for and connect to the nearest camera) operations. In the program, the handling of the button operations is managed by `key_logic`.
 - **RGB LED Support**: Monitors the system status in real time and dynamically adjusts the RGB LED color based on status changes.
 - **Other Features**: Switch the camera to a specific mode, quick switch mode (QS), subscribe to camera status, query camera version, and more.
 

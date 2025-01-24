@@ -43,6 +43,8 @@
 
 - 安装 ESP-IDF 工具链，具体安装步骤可参考下方的参考文档。我们推荐在 VSCode 中安装 ESP-IDF 插件，插件下载地址：[ESP-IDF 插件 - VSCode](https://marketplace.visualstudio.com/items?itemName=espressif.esp-idf-extension)
 
+- 接下来，检查项目中的 `.vscode/settings.json` 文件，确保 IDF 相关的参数配置正确。
+
 - 完成环境配置后，编译并烧录代码到开发板，使用 monitor 查看实时日志。您可以通过观察开发板上的 RGB 灯状态来了解当前设备状态：红色表示未初始化，黄色表示 BLE 初始化完成，设备已准备就绪。
 
 - 长按 BOOT 按键时，RGB 灯蓝色闪烁，表示正在寻找并连接最近的 Osmo Action 设备。蓝色常亮表示 BLE 已连接，绿色常亮表示协议已连接，能够正常收发命令。紫色常亮表示协议已连接并且有 GPS 信号。

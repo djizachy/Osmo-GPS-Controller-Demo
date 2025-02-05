@@ -1,6 +1,6 @@
 # Osmo Action GPS Bluetooth Remote Controller (ESP32-C6-Example)
 
-![](https://img.shields.io/badge/version-V0.1-red.svg) ![](https://img.shields.io/badge/platform-macos_|_rtos-blue.svg) ![](https://img.shields.io/badge/license-MIT-purple.svg)
+![](https://img.shields.io/badge/version-V1.0.0-red.svg) ![](https://img.shields.io/badge/platform-macos_|_rtos-blue.svg) ![](https://img.shields.io/badge/license-MIT-purple.svg)
 
 <p align="center">
   <br>English | <a href="README_CN.md">中文</a>

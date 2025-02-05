@@ -40,7 +40,7 @@ protocol/
 
 - **dji_protocol_parser**：负责 DJI R SDK 协议帧的封装与解析。
 - **dji_protocol_data_processor**：负责 DATA 段的封装与解析。
-- **dji_protocol_data_descriptors**：为每个功能定义三元组 (CmdSet, CmdId) - creator - parser，以便进行功能扩展。
+- **dji_protocol_data_descriptors**：为每个功能定义三元组 (CmdSet, CmdID) - creator - parser，以便进行功能扩展。
 - **dji_protocol_data_structures**：为命令帧和应答帧定义结构体。
 
 <img title="Protocol Layer" src="images/protocol_layer.png" alt="Protocol Layer" data-align="center" width="652">

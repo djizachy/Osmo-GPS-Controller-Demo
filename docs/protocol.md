@@ -40,7 +40,7 @@ protocol/
 
 - **dji_protocol_parser**: Responsible for the encapsulation and parsing of the DJI R SDK protocol frames.
 - **dji_protocol_data_processor**: Responsible for the encapsulation and parsing of the DATA payload.
-- **dji_protocol_data_descriptors**: Defines a triple (CmdSet, CmdId) - creator - parser for each function to facilitate functionality expansion.
+- **dji_protocol_data_descriptors**: Defines a triple (CmdSet, CmdID) - creator - parser for each function to facilitate functionality expansion.
 - **dji_protocol_data_structures**: Defines structures for command frames and response frames.
 
 <img title="Protocol Layer" src="images/protocol_layer.png" alt="Protocol Layer" data-align="center" width="652">
